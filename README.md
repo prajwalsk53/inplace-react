@@ -2,6 +2,8 @@
 
 **A full-stack placement management system with 5 portals** — student placements, tutor site visits, employer confirmation, programme oversight, and admin approvals, all in one app.
 
+🌐 **Live demo:** https://inplace-react.vercel.app (API: https://inplace-react.onrender.com) — demo accounts below. Note: the Render free tier spins down when idle, so the first request after a while can take ~30s to wake up.
+
 ## What it does
 
 InPlace manages the full lifecycle of a university work placement, from application to completion, across five roles:
@@ -20,7 +22,7 @@ InPlace manages the full lifecycle of a university work placement, from applicat
 
 **Integrations** — Google reCAPTCHA v2 (login/registration, optional) · Nodemailer (OTP, password reset, provider magic-links, notifications)
 
-**Deployment** — Frontend on Vercel, backend on Render, database on Neon (serverless Postgres) — see [Deployment](#deployment) below.
+**Deployment** — Frontend on Vercel, backend on Render, database on Neon (serverless Postgres) — live now, see [Deployment](#deployment) below.
 
 ## Architecture
 
@@ -132,13 +134,22 @@ inplace/
 
 ## Deployment
 
-Same pattern as this project's sibling app (HealthSphere): frontend on **Vercel**, backend on **Render**, database on **Neon** (serverless Postgres), both auto-deploying on push to your main branch.
+Same pattern as this project's sibling app (HealthSphere): frontend on **Vercel**, backend on **Render**, database on **Neon** (serverless Postgres), both auto-deploying on push to `master`.
 
-1. **Neon**: create a Postgres project, copy the connection string into `DATABASE_URL`.
-2. **Render**: new Web Service pointed at `backend/`, build command `npm install && npx prisma generate`, start command `npm start` (runs `prisma migrate deploy` then boots the server). Set the env vars from `backend/.env.example`, plus `CLIENT_URL` pointing at your Vercel URL.
-3. **Vercel**: new project pointed at `frontend/`, framework preset Vite. Set `VITE_API_URL` to your Render backend URL + `/api`. `frontend/vercel.json` already has the SPA rewrite rule.
+- **Repo**: https://github.com/prajwalsk53/inplace-react
+- **Neon**: Postgres project, schema migrated + seeded via `npx prisma migrate deploy` / `node prisma/seed.js` against the `DATABASE_URL` connection string.
+- **Render**: Web Service `inplace-react`, root directory `backend`, build command `npm install && npx prisma generate`, start command `npm start` (runs `prisma migrate deploy` then boots the server on Render's assigned `PORT`). Env vars: `DATABASE_URL`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `CLIENT_URL` (set to the Vercel URL below), `UPLOAD_DIR`, `MAX_FILE_SIZE`. `SMTP_*`/`RECAPTCHA_*` left unset — optional.
+- **Vercel**: project `inplace-react`, root directory `frontend`, framework preset Vite (build `vite build`, output `dist`). Env var: `VITE_API_URL=https://inplace-react.onrender.com/api`. `frontend/vercel.json` has the SPA rewrite rule.
 
-This repo isn't connected to GitHub/Vercel/Render yet — those steps need your accounts and are not something that can be done without you granting access.
+Known limitation: Render's filesystem is ephemeral, so files uploaded via the Documents/Reports pages (local disk storage via Multer) won't persist across redeploys. Fine for a demo; a real deployment would want an S3/R2-compatible storage layer, mirroring the original PHP app's Cloudflare R2 setup.
+
+### Redeploying
+
+Both Render and Vercel auto-deploy on push to `master`:
+
+```bash
+git push origin master
+```
 
 ## Background
 
