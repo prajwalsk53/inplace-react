@@ -1,0 +1,370 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  STUDENT
+  TUTOR
+  PROVIDER
+  ADMIN
+  DIRECTOR
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PlacementStatus {
+  SUBMITTED
+  AWAITING_PROVIDER
+  AWAITING_TUTOR
+  APPROVED
+  ACTIVE
+  COMPLETED
+  REJECTED
+  TERMINATED
+}
+
+enum ChangeRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model User {
+  id               Int            @id @default(autoincrement())
+  fullName         String
+  email            String         @unique
+  password         String
+  role             Role
+  approvalStatus   ApprovalStatus @default(PENDING)
+  rejectionReason  String?
+  avatarInitials   String?
+  academicYear     String?
+  programmeType    String?
+  isActive         Boolean        @default(true)
+  companyId        Int?
+  company          Company?       @relation(fields: [companyId], references: [id])
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  placementsAsStudent      Placement[]              @relation("StudentPlacements")
+  placementsAsTutor        Placement[]               @relation("TutorPlacements")
+  visitsConducted          Visit[]                   @relation("TutorVisits")
+  reflections               Reflection[]
+  reports                   Report[]
+  documents                 Document[]
+  changeRequestsMade         PlacementChangeRequest[] @relation("RequestedBy")
+  changeRequestsReviewed     PlacementChangeRequest[] @relation("ReviewedBy")
+  sentMessages               Message[]                @relation("SentMessages")
+  receivedMessages           Message[]                @relation("ReceivedMessages")
+  notifications              Notification[]
+  announcementReads          AnnouncementRead[]
+  announcementsPosted        Announcement[]           @relation("PostedAnnouncements")
+  auditLogs                  AuditLog[]
+  otpCodes                   OtpCode[]
+  passwordResets             PasswordReset[]
+  tutorSetting               TutorSetting?
+  evaluationsGiven           ProviderEvaluation[]      @relation("EvaluatedBy")
+  issuesRaised                ProviderIssue[]          @relation("RaisedBy")
+  meetingsRequested           ProviderMeeting[]        @relation("MeetingRequestedBy")
+
+  @@index([role])
+  @@index([approvalStatus])
+}
+
+model Company {
+  id           Int      @id @default(autoincrement())
+  name         String
+  address      String?
+  sector       String?
+  contactName  String?
+  contactEmail String?
+  contactPhone String?
+  latitude     Float?
+  longitude    Float?
+  createdAt    DateTime @default(now())
+
+  users         User[]
+  placements    Placement[]
+  opportunities PlacementOpportunity[]
+  meetings      ProviderMeeting[]
+  evaluations   ProviderEvaluation[]
+  issues        ProviderIssue[]
+}
+
+model Placement {
+  id              Int             @id @default(autoincrement())
+  studentId       Int
+  student         User            @relation("StudentPlacements", fields: [studentId], references: [id])
+  companyId       Int
+  company         Company         @relation(fields: [companyId], references: [id])
+  tutorId         Int?
+  tutor           User?           @relation("TutorPlacements", fields: [tutorId], references: [id])
+  roleTitle       String
+  jobDescription  String?
+  startDate       DateTime?
+  endDate         DateTime?
+  salary          Decimal?
+  workingPattern  String?
+  supervisorName  String?
+  supervisorEmail String?
+  supervisorPhone String?
+  status          PlacementStatus @default(SUBMITTED)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  changeRequests PlacementChangeRequest[]
+  documents      Document[]
+  reflections    Reflection[]
+  reports        Report[]
+  visits         Visit[]
+  providerTokens ProviderToken[]
+  evaluations    ProviderEvaluation[]
+  issues         ProviderIssue[]
+
+  @@index([status])
+}
+
+model PlacementOpportunity {
+  id          Int      @id @default(autoincrement())
+  companyId   Int
+  company     Company  @relation(fields: [companyId], references: [id])
+  title       String
+  description String?
+  location    String?
+  positions   Int      @default(1)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+model PlacementChangeRequest {
+  id            Int                 @id @default(autoincrement())
+  placementId   Int
+  placement     Placement           @relation(fields: [placementId], references: [id])
+  requestedById Int
+  requestedBy   User                @relation("RequestedBy", fields: [requestedById], references: [id])
+  requestType   String
+  details       String
+  status        ChangeRequestStatus @default(PENDING)
+  reviewedById  Int?
+  reviewedBy    User?               @relation("ReviewedBy", fields: [reviewedById], references: [id])
+  reviewNotes   String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+}
+
+model Document {
+  id           Int        @id @default(autoincrement())
+  placementId  Int?
+  placement    Placement? @relation(fields: [placementId], references: [id])
+  uploadedById Int
+  uploadedBy   User       @relation(fields: [uploadedById], references: [id])
+  fileName     String
+  filePath     String
+  fileType     String?
+  fileSize     Int?
+  category     String?
+  createdAt    DateTime   @default(now())
+}
+
+model Reflection {
+  id            Int       @id @default(autoincrement())
+  placementId   Int
+  placement     Placement @relation(fields: [placementId], references: [id])
+  studentId     Int
+  student       User      @relation(fields: [studentId], references: [id])
+  title         String
+  content       String
+  weekNumber    Int?
+  status        String    @default("draft")
+  tutorFeedback String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Report {
+  id            Int       @id @default(autoincrement())
+  placementId   Int
+  placement     Placement @relation(fields: [placementId], references: [id])
+  studentId     Int
+  student       User      @relation(fields: [studentId], references: [id])
+  title         String
+  filePath      String?
+  content       String?
+  status        String    @default("submitted")
+  submittedAt   DateTime  @default(now())
+  reviewedAt    DateTime?
+  tutorFeedback String?
+}
+
+model Visit {
+  id          Int       @id @default(autoincrement())
+  placementId Int
+  placement   Placement @relation(fields: [placementId], references: [id])
+  tutorId     Int
+  tutor       User      @relation("TutorVisits", fields: [tutorId], references: [id])
+  scheduledAt DateTime
+  visitType   String    @default("in_person")
+  status      String    @default("scheduled")
+  notes       String?
+  outcome     String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model ProviderMeeting {
+  id            Int       @id @default(autoincrement())
+  companyId     Int
+  company       Company   @relation(fields: [companyId], references: [id])
+  requestedById Int
+  requestedBy   User      @relation("MeetingRequestedBy", fields: [requestedById], references: [id])
+  scheduledAt   DateTime?
+  purpose       String?
+  status        String    @default("requested")
+  notes         String?
+  createdAt     DateTime  @default(now())
+}
+
+model ProviderEvaluation {
+  id            Int       @id @default(autoincrement())
+  placementId   Int
+  placement     Placement @relation(fields: [placementId], references: [id])
+  companyId     Int
+  company       Company   @relation(fields: [companyId], references: [id])
+  evaluatedById Int
+  evaluatedBy   User      @relation("EvaluatedBy", fields: [evaluatedById], references: [id])
+  rating        Int
+  comments      String?
+  createdAt     DateTime  @default(now())
+}
+
+model ProviderIssue {
+  id              Int       @id @default(autoincrement())
+  placementId     Int
+  placement       Placement @relation(fields: [placementId], references: [id])
+  companyId       Int
+  company         Company   @relation(fields: [companyId], references: [id])
+  raisedById      Int
+  raisedBy        User      @relation("RaisedBy", fields: [raisedById], references: [id])
+  title           String
+  description     String
+  severity        String    @default("medium")
+  status          String    @default("open")
+  resolutionNotes String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model ProviderToken {
+  id          Int       @id @default(autoincrement())
+  token       String    @unique
+  placementId Int
+  placement   Placement @relation(fields: [placementId], references: [id])
+  purpose     String    @default("confirm_placement")
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+model Announcement {
+  id           Int      @id @default(autoincrement())
+  title        String
+  content      String
+  audienceRole Role?
+  postedById   Int
+  postedBy     User     @relation("PostedAnnouncements", fields: [postedById], references: [id])
+  createdAt    DateTime @default(now())
+
+  reads AnnouncementRead[]
+}
+
+model AnnouncementRead {
+  id             Int          @id @default(autoincrement())
+  announcementId Int
+  announcement   Announcement @relation(fields: [announcementId], references: [id])
+  userId         Int
+  user           User         @relation(fields: [userId], references: [id])
+  readAt         DateTime     @default(now())
+
+  @@unique([announcementId, userId])
+}
+
+model Message {
+  id         Int      @id @default(autoincrement())
+  senderId   Int
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiverId Int
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  body       String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([senderId, receiverId])
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id])
+  type      String
+  title     String
+  body      String?
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead])
+}
+
+model AuditLog {
+  id            Int      @id @default(autoincrement())
+  userId        Int?
+  user          User?    @relation(fields: [userId], references: [id])
+  action        String
+  tableAffected String?
+  recordId      Int?
+  details        String?
+  createdAt     DateTime @default(now())
+}
+
+model OtpCode {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id])
+  code      String
+  purpose   String    @default("email_verification")
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model PasswordReset {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id])
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model SystemSetting {
+  key   String  @id
+  value String?
+}
+
+model TutorSetting {
+  id                 Int     @id @default(autoincrement())
+  tutorId            Int     @unique
+  tutor              User    @relation(fields: [tutorId], references: [id])
+  visitReminderDays  Int     @default(7)
+  emailNotifications Boolean @default(true)
+}

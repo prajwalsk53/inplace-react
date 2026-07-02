@@ -1,0 +1,89 @@
+require('dotenv').config();
+const express = require('express');
+const cors = require('cors');
+const http = require('http');
+const { Server } = require('socket.io');
+const path = require('path');
+const fs = require('fs');
+
+const app = express();
+const server = http.createServer(app);
+
+const staticAllowedOrigins = [
+  process.env.CLIENT_URL || 'http://localhost:5175',
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5175',
+  'http://localhost:5176',
+];
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true; // non-browser requests (curl, server-to-server)
+  return staticAllowedOrigins.includes(origin);
+}
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (isAllowedOrigin(origin)) return callback(null, true);
+    callback(new Error(`Not allowed by CORS: ${origin}`));
+  },
+  credentials: true,
+};
+
+const io = new Server(server, { cors: corsOptions });
+
+const uploadsDir = path.join(__dirname, '../', process.env.UPLOAD_DIR || 'uploads');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+app.use(cors(corsOptions));
+app.use(express.json());
+app.use('/uploads', express.static(uploadsDir));
+
+// Routes
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/public', require('./routes/public'));
+app.use('/api/student', require('./routes/student'));
+app.use('/api/tutor', require('./routes/tutor'));
+app.use('/api/provider', require('./routes/provider'));
+app.use('/api/director', require('./routes/director'));
+app.use('/api/admin', require('./routes/admin'));
+app.use('/api/messages', require('./routes/messages'));
+
+app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date() }));
+
+// Socket.io for real-time messaging
+const onlineUsers = new Map();
+
+io.on('connection', (socket) => {
+  socket.on('join', (userId) => {
+    onlineUsers.set(String(userId), socket.id);
+    socket.userId = String(userId);
+    io.emit('online-users', Array.from(onlineUsers.keys()));
+  });
+
+  socket.on('send-message', (msg) => {
+    const receiverSocketId = onlineUsers.get(String(msg.receiverId));
+    if (receiverSocketId) io.to(receiverSocketId).emit('new-message', msg);
+  });
+
+  socket.on('typing', ({ to }) => {
+    const toSocket = onlineUsers.get(String(to));
+    if (toSocket) io.to(toSocket).emit('typing', { from: socket.userId });
+  });
+
+  socket.on('disconnect', () => {
+    if (socket.userId) {
+      onlineUsers.delete(socket.userId);
+      io.emit('online-users', Array.from(onlineUsers.keys()));
+    }
+  });
+});
+
+// eslint-disable-next-line no-unused-vars
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+});
+
+const PORT = process.env.PORT || 5002;
+server.listen(PORT, () => console.log(`InPlace API running on port ${PORT}`));
