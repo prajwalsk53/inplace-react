@@ -198,9 +198,11 @@ model Report {
   studentId     Int
   student       User      @relation(fields: [studentId], references: [id])
   title         String
+  reportType    String    @default("other")
   filePath      String?
+  fileSize      Int?
   content       String?
-  status        String    @default("submitted")
+  status        String    @default("pending")
   submittedAt   DateTime  @default(now())
   reviewedAt    DateTime?
   tutorFeedback String?

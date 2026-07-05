@@ -6,7 +6,7 @@ const NAV = {
     ['/student/dashboard', '📊', 'Dashboard'],
     ['/student/my-placement', '💼', 'My Placement'],
     ['/student/submit-request', '📝', 'Submit Request'],
-    ['/student/reports', '📄', 'Reflections & Reports'],
+    ['/student/reports', '📄', 'Reports'],
     ['/student/visits', '📅', 'Visits'],
     ['/student/announcements', '📢', 'Announcements'],
     ['/messages', '💬', 'Messages'],

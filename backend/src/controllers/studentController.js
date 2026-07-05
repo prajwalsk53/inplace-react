@@ -175,8 +175,50 @@ exports.createReflection = async (req, res) => {
 
 exports.getReports = async (req, res) => {
   try {
-    const reports = await prisma.report.findMany({ where: { studentId: req.user.id }, orderBy: { submittedAt: 'desc' } });
-    res.json(reports);
+    const studentId = req.user.id;
+    const placement = await prisma.placement.findFirst({
+      where: { studentId, status: { in: ['APPROVED', 'ACTIVE'] } },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    let interimDue = null;
+    let finalDue = null;
+    if (placement) {
+      const start = new Date(placement.startDate);
+      const end = new Date(placement.endDate);
+      interimDue = new Date(start); interimDue.setMonth(interimDue.getMonth() + 4);
+      finalDue = new Date(end); finalDue.setMonth(finalDue.getMonth() - 1);
+    }
+
+    let interimReport = null;
+    let finalReport = null;
+    if (placement) {
+      [interimReport, finalReport] = await Promise.all([
+        prisma.report.findFirst({ where: { placementId: placement.id, studentId, reportType: 'interim' }, orderBy: { submittedAt: 'desc' } }),
+        prisma.report.findFirst({ where: { placementId: placement.id, studentId, reportType: 'final' }, orderBy: { submittedAt: 'desc' } }),
+      ]);
+    }
+
+    let reviewed = 0, pending = 0, overdue = 0, upcoming = 0;
+    if (placement) {
+      if (finalReport) {
+        if (finalReport.status === 'reviewed') reviewed += 1; else pending += 1;
+      } else {
+        const today = new Date();
+        if (finalDue && today > finalDue) overdue += 1;
+        else if (finalDue) {
+          const daysLeft = Math.round((finalDue - today) / 86400000);
+          if (daysLeft > 30) upcoming += 1;
+        }
+      }
+    }
+
+    res.json({
+      hasPlacement: !!placement,
+      interimDue, finalDue,
+      interimReport, finalReport,
+      summary: { reviewed, pending, overdue, upcoming },
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -184,12 +226,27 @@ exports.getReports = async (req, res) => {
 
 exports.uploadReport = async (req, res) => {
   try {
-    const { title } = req.body;
-    const placement = await getCurrentPlacement(req.user.id);
+    const { reportType } = req.body;
+    if (!['interim', 'final'].includes(reportType)) return res.status(400).json({ error: 'reportType must be "interim" or "final"' });
+    if (!req.file) return res.status(400).json({ error: 'Please choose a PDF file' });
+    if (req.file.mimetype !== 'application/pdf') return res.status(400).json({ error: 'Only PDF files are allowed' });
+
+    const placement = await prisma.placement.findFirst({ where: { studentId: req.user.id, status: { in: ['APPROVED', 'ACTIVE'] } } });
     if (!placement) return res.status(404).json({ error: 'No active placement' });
-    const filePath = req.file ? fileUrl(req.file.filename) : null;
+
+    const existing = await prisma.report.findFirst({ where: { placementId: placement.id, studentId: req.user.id, reportType } });
+    if (existing) return res.status(400).json({ error: `${reportType === 'interim' ? 'Interim' : 'Final'} report has already been submitted` });
+
     const report = await prisma.report.create({
-      data: { placementId: placement.id, studentId: req.user.id, title, filePath, status: 'submitted' },
+      data: {
+        placementId: placement.id,
+        studentId: req.user.id,
+        title: `${reportType === 'interim' ? 'Interim' : 'Final'} Placement Report`,
+        reportType,
+        filePath: fileUrl(req.file.filename),
+        fileSize: req.file.size,
+        status: 'pending',
+      },
     });
     res.status(201).json(report);
   } catch (err) {
