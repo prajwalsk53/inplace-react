@@ -84,17 +84,20 @@ async function seed() {
     },
   });
 
+  const placementDates = {
+    startDate: new Date(Date.now() - 90 * 86400000),
+    endDate: new Date(Date.now() + 270 * 86400000),
+  };
   const placement = await prisma.placement.upsert({
     where: { id: 1 },
-    update: {},
+    update: { ...placementDates },
     create: {
       studentId: student.id,
       companyId: company.id,
       tutorId: tutor.id,
       roleTitle: 'Software Engineering Intern',
       jobDescription: 'Working within the platform team on internal tooling.',
-      startDate: new Date('2026-09-01'),
-      endDate: new Date('2027-06-30'),
+      ...placementDates,
       salary: 22000,
       workingPattern: 'Full-time, Mon-Fri',
       supervisorName: 'Sarah Collins',
@@ -104,35 +107,39 @@ async function seed() {
     },
   });
 
-  await prisma.visit.createMany({
-    data: [
-      { placementId: placement.id, tutorId: tutor.id, scheduledAt: new Date(Date.now() + 7 * 86400000), visitType: 'in_person', status: 'scheduled' },
-      { placementId: placement.id, tutorId: tutor.id, scheduledAt: new Date(Date.now() - 30 * 86400000), visitType: 'virtual', status: 'completed', notes: 'Student settling in well, no concerns raised.', outcome: 'Satisfactory' },
-    ],
-    skipDuplicates: true,
-  });
+  if ((await prisma.visit.count({ where: { placementId: placement.id } })) === 0) {
+    await prisma.visit.createMany({
+      data: [
+        { placementId: placement.id, tutorId: tutor.id, scheduledAt: new Date(Date.now() + 7 * 86400000), visitType: 'in_person', status: 'scheduled' },
+        { placementId: placement.id, tutorId: tutor.id, scheduledAt: new Date(Date.now() - 30 * 86400000), visitType: 'virtual', status: 'completed', notes: 'Student settling in well, no concerns raised.', outcome: 'Satisfactory' },
+      ],
+    });
+  }
 
-  await prisma.reflection.createMany({
-    data: [
-      { placementId: placement.id, studentId: student.id, title: 'Week 1 Reflection', content: 'Onboarding went smoothly, met the team and set up dev environment.', weekNumber: 1, status: 'reviewed', tutorFeedback: 'Great start, keep documenting your learning.' },
-    ],
-    skipDuplicates: true,
-  });
+  if ((await prisma.reflection.count({ where: { placementId: placement.id } })) === 0) {
+    await prisma.reflection.createMany({
+      data: [
+        { placementId: placement.id, studentId: student.id, title: 'Week 1 Reflection', content: 'Onboarding went smoothly, met the team and set up dev environment.', weekNumber: 1, status: 'reviewed', tutorFeedback: 'Great start, keep documenting your learning.' },
+      ],
+    });
+  }
 
-  await prisma.announcement.createMany({
-    data: [
-      { title: 'Welcome to the new placement year', content: 'Please review the placement handbook before your first day.', postedById: admin.id },
-    ],
-    skipDuplicates: true,
-  });
+  if ((await prisma.announcement.count()) === 0) {
+    await prisma.announcement.createMany({
+      data: [
+        { title: 'Welcome to the new placement year', content: 'Please review the placement handbook before your first day.', postedById: admin.id },
+      ],
+    });
+  }
 
-  await prisma.notification.createMany({
-    data: [
-      { userId: student.id, type: 'placement', title: 'Placement Approved', body: 'Your placement with Acme Digital Ltd has been approved.' },
-      { userId: tutor.id, type: 'visit', title: 'Upcoming Visit', body: 'You have a visit scheduled next week.' },
-    ],
-    skipDuplicates: true,
-  });
+  if ((await prisma.notification.count({ where: { userId: { in: [student.id, tutor.id] } } })) === 0) {
+    await prisma.notification.createMany({
+      data: [
+        { userId: student.id, type: 'placement', title: 'Placement Approved', body: 'Your placement with Acme Digital Ltd has been approved.' },
+        { userId: tutor.id, type: 'visit', title: 'Upcoming Visit', body: 'You have a visit scheduled next week.' },
+      ],
+    });
+  }
 
   console.log('Seed complete. Demo accounts (password: "password"):');
   console.log(' admin@inplace.com / tutor@inplace.com / provider@inplace.com / student@inplace.com / director@inplace.com');

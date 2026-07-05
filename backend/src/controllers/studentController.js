@@ -15,18 +15,76 @@ async function getCurrentPlacement(studentId) {
   });
 }
 
+const STEP_MAP = {
+  SUBMITTED: 1, AWAITING_PROVIDER: 1, AWAITING_TUTOR: 2,
+  APPROVED: 3, ACTIVE: 4, COMPLETED: 4, REJECTED: 4, TERMINATED: 4,
+};
+
 exports.getDashboard = async (req, res) => {
   try {
     const studentId = req.user.id;
-    const placement = await getCurrentPlacement(studentId);
+    const activePlacement = await prisma.placement.findFirst({
+      where: { studentId, status: { in: ['APPROVED', 'ACTIVE'] } },
+      include: placementInclude,
+      orderBy: { createdAt: 'desc' },
+    });
+    const latestPlacement = activePlacement || (await getCurrentPlacement(studentId));
 
-    const [upcomingVisits, unreadMessages, unreadNotifications] = await Promise.all([
-      placement ? prisma.visit.count({ where: { placementId: placement.id, status: 'scheduled', scheduledAt: { gte: new Date() } } }) : 0,
+    const [reportCount, nextVisit, unreadMessages, rawAnnouncements] = await Promise.all([
+      prisma.report.count({ where: { studentId } }),
+      activePlacement
+        ? prisma.visit.findFirst({
+            where: { placementId: activePlacement.id, status: 'scheduled', scheduledAt: { gte: new Date() } },
+            orderBy: { scheduledAt: 'asc' },
+          })
+        : null,
       prisma.message.count({ where: { receiverId: studentId, isRead: false } }),
-      prisma.notification.count({ where: { userId: studentId, isRead: false } }),
+      prisma.announcement.findMany({
+        where: { OR: [{ audienceRole: null }, { audienceRole: 'STUDENT' }] },
+        include: { postedBy: { select: { fullName: true } }, reads: { where: { userId: studentId } } },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      }),
     ]);
 
-    res.json({ placement, upcomingVisits, unreadMessages, unreadNotifications });
+    const unreadAnnouncements = rawAnnouncements
+      .filter((a) => a.reads.length === 0)
+      .slice(0, 3)
+      .map((a) => ({ id: a.id, title: a.title, body: a.content, authorName: a.postedBy.fullName, createdAt: a.createdAt }));
+
+    let interimDue = null;
+    let finalDue = null;
+    let progressPct = 0;
+    let daysToEnd = null;
+    if (activePlacement && activePlacement.startDate && activePlacement.endDate) {
+      const start = new Date(activePlacement.startDate);
+      const end = new Date(activePlacement.endDate);
+      const today = new Date();
+      interimDue = new Date(start); interimDue.setMonth(interimDue.getMonth() + 4);
+      finalDue = new Date(end); finalDue.setMonth(finalDue.getMonth() - 1);
+      const totalDays = Math.max(1, Math.round((end - start) / 86400000));
+      const elapsedDays = Math.round((today - start) / 86400000);
+      progressPct = Math.max(0, Math.min(100, Math.round((elapsedDays / totalDays) * 100)));
+      daysToEnd = Math.round((end - today) / 86400000);
+    }
+
+    const latestRequest = latestPlacement
+      ? { id: latestPlacement.id, status: latestPlacement.status, companyName: latestPlacement.company.name }
+      : null;
+
+    res.json({
+      placement: activePlacement,
+      latestRequest,
+      currentStep: latestRequest ? (STEP_MAP[latestRequest.status] || 0) : 0,
+      reportCount,
+      nextVisit,
+      unreadMessages,
+      unreadAnnouncements,
+      interimDue,
+      finalDue,
+      progressPct,
+      daysToEnd,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
