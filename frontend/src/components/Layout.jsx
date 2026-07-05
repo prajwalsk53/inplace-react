@@ -8,7 +8,7 @@ const pageTitles = {
   '/student/submit-request': ['Submit Request', 'Raise a change request with your tutor'],
   '/student/reports': ['Reflections & Reports', 'Submit reflections and placement reports'],
   '/student/visits': ['Visits', 'Your scheduled tutor visits'],
-  '/student/announcements': ['Announcements', 'Placement office updates'],
+  '/student/announcements': ['Announcements', 'Messages from your placement team'],
 
   '/tutor/dashboard': ['Dashboard', 'Tutor overview'],
   '/tutor/placements': ['Placements', 'Placements you manage'],

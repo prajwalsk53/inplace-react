@@ -229,12 +229,43 @@ exports.uploadDocument = async (req, res) => {
 
 exports.getAnnouncements = async (req, res) => {
   try {
+    const userId = req.user.id;
     const announcements = await prisma.announcement.findMany({
-      where: { OR: [{ audienceRole: null }, { audienceRole: 'STUDENT' }] },
-      include: { reads: { where: { userId: req.user.id } } },
-      orderBy: { createdAt: 'desc' },
+      where: {
+        AND: [
+          { OR: [{ audienceRole: null }, { audienceRole: 'STUDENT' }] },
+          { OR: [{ expiresAt: null }, { expiresAt: { gte: new Date() } }] },
+        ],
+      },
+      include: { postedBy: { select: { fullName: true, avatarInitials: true } }, reads: { where: { userId } } },
+      orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],
     });
-    res.json(announcements.map((a) => ({ ...a, isRead: a.reads.length > 0, reads: undefined })));
+
+    const all = announcements.map((a) => ({
+      id: a.id,
+      title: a.title,
+      body: a.content,
+      isPinned: a.isPinned,
+      expiresAt: a.expiresAt,
+      createdAt: a.createdAt,
+      authorName: a.postedBy.fullName,
+      authorInitials: a.postedBy.avatarInitials,
+      audienceRole: a.audienceRole,
+      isRead: a.reads.length > 0,
+    }));
+
+    const totalCount = all.length;
+    const unreadCount = all.filter((a) => !a.isRead).length;
+    const displayed = req.query.filter === 'unread' ? all.filter((a) => !a.isRead) : all;
+
+    if (displayed.length > 0) {
+      await prisma.announcementRead.createMany({
+        data: displayed.map((a) => ({ announcementId: a.id, userId })),
+        skipDuplicates: true,
+      });
+    }
+
+    res.json({ totalCount, unreadCount, announcements: displayed });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

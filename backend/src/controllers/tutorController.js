@@ -344,9 +344,15 @@ exports.getAnnouncements = async (req, res) => {
 
 exports.createAnnouncement = async (req, res) => {
   try {
-    const { title, content, audienceRole } = req.body;
+    const { title, content, audienceRole, isPinned, expiresAt } = req.body;
     const announcement = await prisma.announcement.create({
-      data: { title, content, audienceRole: audienceRole ? audienceRole.toUpperCase() : null, postedById: req.user.id },
+      data: {
+        title, content,
+        audienceRole: audienceRole ? audienceRole.toUpperCase() : null,
+        isPinned: !!isPinned,
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+        postedById: req.user.id,
+      },
     });
     res.status(201).json(announcement);
   } catch (err) {

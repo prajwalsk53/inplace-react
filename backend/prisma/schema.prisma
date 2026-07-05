@@ -275,13 +275,15 @@ model ProviderToken {
 }
 
 model Announcement {
-  id           Int      @id @default(autoincrement())
+  id           Int       @id @default(autoincrement())
   title        String
   content      String
   audienceRole Role?
+  isPinned     Boolean   @default(false)
+  expiresAt    DateTime?
   postedById   Int
-  postedBy     User     @relation("PostedAnnouncements", fields: [postedById], references: [id])
-  createdAt    DateTime @default(now())
+  postedBy     User      @relation("PostedAnnouncements", fields: [postedById], references: [id])
+  createdAt    DateTime  @default(now())
 
   reads AnnouncementRead[]
 }
