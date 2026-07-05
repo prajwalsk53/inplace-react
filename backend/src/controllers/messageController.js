@@ -4,32 +4,48 @@ const { mailNewMessage } = require('../utils/mailer');
 exports.getContacts = async (req, res) => {
   try {
     const user = req.user;
-    let contacts = [];
+    const contacts = [];
+    const meta = new Map(); // contactId -> { roleTitles: Set, companies: Set }
+
+    const attach = (contact, roleTitle, companyName) => {
+      if (!contact) return;
+      contacts.push(contact);
+      if (!meta.has(contact.id)) meta.set(contact.id, { roleTitles: new Set(), companies: new Set() });
+      const m = meta.get(contact.id);
+      if (roleTitle) m.roleTitles.add(roleTitle);
+      if (companyName) m.companies.add(companyName);
+    };
 
     if (user.role === 'STUDENT') {
-      const placement = await prisma.placement.findFirst({ where: { studentId: user.id }, include: { tutor: true, company: { include: { users: true } } } });
-      if (placement) {
-        if (placement.tutor) contacts.push(placement.tutor);
-        contacts.push(...placement.company.users);
+      const placements = await prisma.placement.findMany({ where: { studentId: user.id }, include: { tutor: true, company: { include: { users: true } } } });
+      for (const p of placements) {
+        attach(p.tutor, p.roleTitle, p.company.name);
+        p.company.users.forEach((u) => attach(u, p.roleTitle, p.company.name));
       }
     } else if (user.role === 'TUTOR') {
       const placements = await prisma.placement.findMany({ where: { tutorId: user.id }, include: { student: true, company: { include: { users: true } } } });
       for (const p of placements) {
-        contacts.push(p.student);
-        contacts.push(...p.company.users);
+        attach(p.student, p.roleTitle, p.company.name);
+        p.company.users.forEach((u) => attach(u, p.roleTitle, p.company.name));
       }
     } else if (user.role === 'PROVIDER') {
       const placements = await prisma.placement.findMany({ where: { companyId: user.companyId }, include: { student: true, tutor: true } });
       for (const p of placements) {
-        contacts.push(p.student);
-        if (p.tutor) contacts.push(p.tutor);
+        attach(p.student, p.roleTitle, null);
+        attach(p.tutor, p.roleTitle, null);
       }
     } else {
-      contacts = await prisma.user.findMany({ where: { approvalStatus: 'APPROVED', id: { not: user.id } }, take: 50 });
+      const others = await prisma.user.findMany({ where: { approvalStatus: 'APPROVED', id: { not: user.id } }, take: 50 });
+      others.forEach((u) => attach(u, null, null));
     }
 
     const unique = Array.from(new Map(contacts.map((c) => [c.id, c])).values());
-    res.json(unique.map(({ id, fullName, email, role, avatarInitials }) => ({ id, fullName, email, role, avatarInitials })));
+    res.json(unique.map(({ id, fullName, email, role, avatarInitials }) => ({
+      id, fullName, email, role, avatarInitials,
+      placementCount: meta.get(id)?.roleTitles.size || 0,
+      roleTitles: Array.from(meta.get(id)?.roleTitles || []).join(' • '),
+      companies: Array.from(meta.get(id)?.companies || []).join(' • '),
+    })));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
