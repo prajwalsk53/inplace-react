@@ -19,6 +19,7 @@ router.post('/placements/:id/terminate', tutorController.terminatePlacement);
 
 router.get('/students', tutorController.getStudents);
 router.get('/available-students', tutorController.getAvailableStudents);
+router.get('/company-names', tutorController.getExistingCompanyNames);
 
 router.get('/visits', tutorController.getVisits);
 router.post('/visits', tutorController.scheduleVisit);

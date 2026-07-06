@@ -182,7 +182,7 @@ exports.getPlacement = async (req, res) => {
 exports.getAvailableStudents = async (req, res) => {
   try {
     const students = await prisma.user.findMany({
-      where: { role: 'STUDENT', approvalStatus: 'APPROVED', placementsAsStudent: { none: { status: { notIn: ['REJECTED', 'TERMINATED'] } } } },
+      where: { role: 'STUDENT', approvalStatus: 'APPROVED', isActive: true },
       select: { id: true, fullName: true, email: true, academicYear: true, programmeType: true },
       orderBy: { fullName: 'asc' },
     });
@@ -192,45 +192,99 @@ exports.getAvailableStudents = async (req, res) => {
   }
 };
 
+exports.getExistingCompanyNames = async (req, res) => {
+  try {
+    const companies = await prisma.company.findMany({ select: { name: true }, distinct: ['name'], orderBy: { name: 'asc' } });
+    res.json(companies.map((c) => c.name));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const INITIAL_STATUS_OPTIONS = ['AWAITING_PROVIDER', 'AWAITING_TUTOR', 'APPROVED'];
+
 exports.createPlacement = async (req, res) => {
   try {
     const {
-      studentId, companyId, companyName, companyAddress, companyCity, companySector, companyLat, companyLng,
+      studentId, companyName, companyAddress, companyCity, companySector, companyLat, companyLng,
       roleTitle, jobDescription, startDate, endDate, salary, workingPattern,
-      supervisorName, supervisorEmail, supervisorPhone,
+      supervisorName, supervisorEmail, supervisorPhone, initialStatus,
     } = req.body;
 
-    let finalCompanyId = companyId ? Number(companyId) : null;
-    if (!finalCompanyId) {
-      if (!companyName) return res.status(400).json({ error: 'companyId or companyName is required' });
-      const company = await prisma.company.create({
-        data: { name: companyName, address: companyAddress, city: companyCity, sector: companySector, latitude: companyLat ? Number(companyLat) : null, longitude: companyLng ? Number(companyLng) : null },
+    if (!studentId || !companyName || !roleTitle || !startDate || !endDate) {
+      return res.status(400).json({ error: 'Student, company name, role title, start date and end date are all required.' });
+    }
+    if (endDate <= startDate) {
+      return res.status(400).json({ error: 'End date must be after start date.' });
+    }
+
+    const student = await prisma.user.findFirst({ where: { id: Number(studentId), role: 'STUDENT', approvalStatus: 'APPROVED' } });
+    if (!student) return res.status(400).json({ error: 'Selected student not found or not approved.' });
+
+    const status = INITIAL_STATUS_OPTIONS.includes((initialStatus || '').toUpperCase()) ? initialStatus.toUpperCase() : 'AWAITING_PROVIDER';
+    const lat = companyLat !== undefined && companyLat !== '' && !Number.isNaN(Number(companyLat)) ? Number(companyLat) : null;
+    const lng = companyLng !== undefined && companyLng !== '' && !Number.isNaN(Number(companyLng)) ? Number(companyLng) : null;
+
+    const existingCompany = await prisma.company.findFirst({ where: { name: { equals: companyName, mode: 'insensitive' } } });
+    let companyId;
+    if (existingCompany) {
+      companyId = existingCompany.id;
+      await prisma.company.update({
+        where: { id: companyId },
+        data: {
+          address: companyAddress || existingCompany.address,
+          city: companyCity || existingCompany.city,
+          sector: companySector || existingCompany.sector,
+          contactName: supervisorName || existingCompany.contactName,
+          contactEmail: supervisorEmail || existingCompany.contactEmail,
+          contactPhone: supervisorPhone || existingCompany.contactPhone,
+          latitude: lat ?? existingCompany.latitude,
+          longitude: lng ?? existingCompany.longitude,
+        },
       });
-      finalCompanyId = company.id;
+    } else {
+      const company = await prisma.company.create({
+        data: {
+          name: companyName, address: companyAddress || null, city: companyCity || null, sector: companySector || null,
+          contactName: supervisorName || null, contactEmail: supervisorEmail || null, contactPhone: supervisorPhone || null,
+          latitude: lat, longitude: lng,
+        },
+      });
+      companyId = company.id;
     }
 
     const placement = await prisma.placement.create({
       data: {
-        studentId: Number(studentId),
-        companyId: finalCompanyId,
+        studentId: student.id,
+        companyId,
         tutorId: req.user.id,
-        roleTitle, jobDescription,
-        startDate: startDate ? new Date(startDate) : null,
-        endDate: endDate ? new Date(endDate) : null,
-        salary: salary ? Number(salary) : null,
-        workingPattern, supervisorName, supervisorEmail, supervisorPhone,
-        status: 'AWAITING_PROVIDER',
+        roleTitle, jobDescription: jobDescription || null,
+        startDate: new Date(startDate), endDate: new Date(endDate),
+        salary: salary || null, workingPattern: workingPattern || null,
+        supervisorName: supervisorName || null, supervisorEmail: supervisorEmail || null, supervisorPhone: supervisorPhone || null,
+        status,
       },
       include: { student: true },
     });
 
-    if (supervisorEmail) await issueProviderToken(placement, 'confirm_placement');
-    await prisma.notification.create({
-      data: { userId: placement.studentId, type: 'placement', title: 'Placement created', body: `A placement with ${companyName || 'your provider'} has been created for you.`, link: '/student/my-placement' },
-    });
-    await logAction(req.user.id, 'create_placement', 'placements', placement.id);
+    await logAction(req.user.id, 'tutor_created_placement', 'placements', placement.id, `Created on behalf of student #${student.id}`);
 
-    res.status(201).json(placement);
+    const statusLabel = status.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+    await prisma.message.create({
+      data: {
+        senderId: req.user.id, receiverId: student.id, isRead: false,
+        body: `A placement record has been created for you at ${companyName} (${roleTitle}) by your tutor. Status: ${statusLabel}. Please log in to review the details.`,
+      },
+    });
+
+    if (status === 'AWAITING_PROVIDER' && supervisorEmail) {
+      await issueProviderToken(placement, 'confirm_placement');
+    }
+
+    res.status(201).json({
+      placement,
+      message: `Placement created successfully for ${student.fullName} at ${companyName}. Status set to: ${statusLabel}.`,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -249,7 +303,7 @@ exports.updatePlacement = async (req, res) => {
         roleTitle, jobDescription,
         startDate: startDate ? new Date(startDate) : undefined,
         endDate: endDate ? new Date(endDate) : undefined,
-        salary: salary !== undefined ? Number(salary) : undefined,
+        salary: salary !== undefined ? (salary || null) : undefined,
         workingPattern, supervisorName, supervisorEmail, supervisorPhone,
         status: status || undefined,
       },

@@ -12,7 +12,7 @@ const pageTitles = {
 
   '/tutor/dashboard': ['Dashboard', null],
   '/tutor/placements': ['All Placements', 'View and manage all student placements'],
-  '/tutor/create-placement': ['Create Placement', 'Set up a new student placement'],
+  '/tutor/create-placement': ['Add Placement', 'Create a placement record on behalf of a student'],
   '/tutor/visits': ['Visits', 'Manage placement visits'],
   '/tutor/schedule-visit': ['Schedule Visit', 'Book a new placement visit'],
   '/tutor/providers': ['Providers', 'Employer directory'],

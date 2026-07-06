@@ -268,7 +268,7 @@ exports.submitPlacementRequest = async (req, res) => {
       jobDescription: jobDescription || '',
       startDate: startDate ? new Date(startDate) : null,
       endDate: endDate ? new Date(endDate) : null,
-      salary: salary ? salary.replace(/[^0-9.]/g, '') || null : null,
+      salary: salary || null,
       workingPattern: workingPattern || null,
       supervisorName: supervisorName || null,
       supervisorEmail: supervisorEmail || null,

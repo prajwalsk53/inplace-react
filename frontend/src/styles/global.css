@@ -288,6 +288,7 @@ tbody tr:hover { background: rgba(232,160,32,0.05); }
 .info-item label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; display: block; margin-bottom: 0.35rem; }
 .info-item p { font-size: 0.9375rem; font-weight: 500; color: var(--text); }
 .divider { height: 1px; background: var(--border); margin: 2rem 0; }
+.section-label { font-size: 0.8125rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 1.25rem; padding-bottom: 0.75rem; border-bottom: 2px solid var(--border); }
 .type-chip { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 6px; font-family: monospace; font-size: 0.75rem; font-weight: 500; background: #e8f0fe; color: #1a56db; }
 .upload-zone { border: 2px dashed var(--border); border-radius: var(--radius-sm); padding: 2rem; text-align: center; cursor: pointer; transition: all 0.2s; }
 .upload-zone:hover { border-color: var(--navy); background: #f0f2f7; }

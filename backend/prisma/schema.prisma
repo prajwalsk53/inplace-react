@@ -115,7 +115,7 @@ model Placement {
   jobDescription  String?
   startDate       DateTime?
   endDate         DateTime?
-  salary          Decimal?
+  salary          String?
   workingPattern  String?
   supervisorName  String?
   supervisorEmail String?

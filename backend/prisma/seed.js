@@ -100,7 +100,7 @@ async function seed() {
       roleTitle: 'Software Engineering Intern',
       jobDescription: 'Working within the platform team on internal tooling.',
       ...placementDates,
-      salary: 22000,
+      salary: '£22,000',
       workingPattern: 'Full-time, Mon-Fri',
       supervisorName: 'Sarah Collins',
       supervisorEmail: 'sarah.collins@acmedigital.example',

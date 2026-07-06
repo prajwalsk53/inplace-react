@@ -181,7 +181,7 @@ export default function TutorPlacements() {
                               <p>{p.supervisorEmail ? <a href={`mailto:${p.supervisorEmail}`} style={{ color: 'var(--navy)' }}>{p.supervisorEmail}</a> : 'N/A'}</p>
                             </div>
                             <div className="info-item"><label>Supervisor Phone</label><p>{p.supervisorPhone || 'N/A'}</p></div>
-                            <div className="info-item"><label>Salary</label><p>{p.salary ? `£${Number(p.salary).toLocaleString()}` : 'Not stated'}</p></div>
+                            <div className="info-item"><label>Salary</label><p>{p.salary || 'Not stated'}</p></div>
                             <div className="info-item"><label>Working Pattern</label><p>{p.workingPattern || 'N/A'}</p></div>
                           </div>
 

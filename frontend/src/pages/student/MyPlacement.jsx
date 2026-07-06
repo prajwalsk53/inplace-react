@@ -153,7 +153,7 @@ export default function MyPlacement() {
             <div className="info-item"><label>Location</label><p>{placement.company.address || 'N/A'}</p></div>
             <div className="info-item"><label>Start Date</label><p>{fmtDateLong(placement.startDate)}</p></div>
             <div className="info-item"><label>End Date</label><p>{fmtDateLong(placement.endDate)}</p></div>
-            <div className="info-item"><label>Salary</label><p>{placement.salary ? `£${Number(placement.salary).toLocaleString()}` : 'Not specified'}</p></div>
+            <div className="info-item"><label>Salary</label><p>{placement.salary || 'Not specified'}</p></div>
             <div className="info-item"><label>Supervisor</label><p>{placement.supervisorName || 'N/A'}</p></div>
             <div className="info-item">
               <label>Supervisor Email</label>
