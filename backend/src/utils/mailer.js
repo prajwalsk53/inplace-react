@@ -123,9 +123,20 @@ function mailPlacementRequestSubmitted(email, name, companyName, roleTitle, star
   return sendEmail(email, name, `InPlace — Your Placement Request at ${companyName} Has Been Submitted`, mailTemplate('Placement Request Submitted', body, 'View My Dashboard', `${APP_URL}/student/dashboard`));
 }
 
+function mailChangeRequestSubmitted(email, name, studentName, companyName, changeTypeLabel, justification, proposedDetails) {
+  const body = p(`A student has submitted a <strong>change request</strong> for their placement at <strong>${companyName}</strong> and requires your approval before it can proceed.`)
+    + `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E2E8F0;border-radius:10px;overflow:hidden;margin:16px 0;">
+        <tr><td style="padding:10px 16px;background:#F8FAFF;font-weight:600;width:40%;">Student</td><td style="padding:10px 16px;">${studentName}</td></tr>
+        <tr><td style="padding:10px 16px;font-weight:600;">Change Type</td><td style="padding:10px 16px;">${changeTypeLabel}</td></tr>
+        <tr><td style="padding:10px 16px;background:#F8FAFF;font-weight:600;">Justification</td><td style="padding:10px 16px;">${justification.replace(/\n/g, '<br>')}</td></tr>
+        ${proposedDetails ? `<tr><td style="padding:10px 16px;font-weight:600;">Proposed Details</td><td style="padding:10px 16px;">${proposedDetails.replace(/\n/g, '<br>')}</td></tr>` : ''}
+      </table>`;
+  return sendEmail(email, name, `InPlace — Placement Change Request from ${studentName}`, mailTemplate('Placement Change Request', body, 'Review Change Request', `${APP_URL}/tutor/requests`));
+}
+
 module.exports = {
   sendEmail, mailTemplate, p,
   mailWelcome, mailAccountApproved, mailAccountRejected,
   mailOtp, mailPasswordReset, mailProviderConfirm, mailNewMessage, mailVisitScheduled,
-  mailPlacementRequestSubmitted,
+  mailPlacementRequestSubmitted, mailChangeRequestSubmitted,
 };

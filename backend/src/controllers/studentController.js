@@ -117,14 +117,29 @@ exports.getChangeRequests = async (req, res) => {
   }
 };
 
+const CHANGE_TYPE_LABELS = {
+  end_date: 'Extend / Change End Date',
+  start_date: 'Change Start Date',
+  role: 'Change Role (same company)',
+  supervisor: 'Change Supervisor',
+  transfer: 'Transfer to Different Company',
+  salary: 'Change Salary / Terms',
+};
+
 exports.submitChangeRequest = async (req, res) => {
   try {
-    const { requestType, details } = req.body;
+    const { requestType, details, proposedDetails } = req.body;
     const placement = await getCurrentPlacement(req.user.id);
     if (!placement) return res.status(404).json({ error: 'No active placement to raise a request against' });
 
+    const pendingCount = await prisma.placementChangeRequest.count({ where: { placementId: placement.id, status: 'PENDING' } });
+    if (pendingCount > 0) {
+      return res.status(400).json({ error: 'You already have a pending change request for this placement. Please wait for it to be reviewed.' });
+    }
+
+    const fullDetails = proposedDetails ? `${details}\n\nProposed: ${proposedDetails}` : details;
     const request = await prisma.placementChangeRequest.create({
-      data: { placementId: placement.id, requestedById: req.user.id, requestType, details },
+      data: { placementId: placement.id, requestedById: req.user.id, requestType, details: fullDetails },
     });
 
     if (placement.tutorId) {
@@ -132,6 +147,15 @@ exports.submitChangeRequest = async (req, res) => {
         data: { userId: placement.tutorId, type: 'change_request', title: 'New change request', body: `${req.user.fullName} submitted a ${requestType} request.`, link: `/tutor/requests` },
       });
     }
+
+    const providerUser = await prisma.user.findFirst({ where: { role: 'PROVIDER', companyId: placement.companyId, isActive: true } });
+    const toEmail = providerUser?.email || placement.supervisorEmail;
+    const toName = providerUser?.fullName || placement.supervisorName || 'Provider';
+    if (toEmail) {
+      const { mailChangeRequestSubmitted } = require('../utils/mailer');
+      await mailChangeRequestSubmitted(toEmail, toName, req.user.fullName, placement.company.name, CHANGE_TYPE_LABELS[requestType] || requestType.replace(/_/g, ' '), details, proposedDetails);
+    }
+
     await logAction(req.user.id, 'submit_change_request', 'placement_change_requests', request.id);
     res.status(201).json(request);
   } catch (err) {
@@ -311,6 +335,20 @@ exports.getVisits = async (req, res) => {
   }
 };
 
+exports.saveVisitNote = async (req, res) => {
+  try {
+    const visitId = Number(req.params.id);
+    const { notes } = req.body;
+    const visit = await prisma.visit.findFirst({ where: { id: visitId, placement: { studentId: req.user.id } } });
+    if (!visit) return res.status(404).json({ error: 'Visit not found' });
+
+    const updated = await prisma.visit.update({ where: { id: visitId }, data: { notes } });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.getReflections = async (req, res) => {
   try {
     const reflections = await prisma.reflection.findMany({ where: { studentId: req.user.id }, orderBy: { createdAt: 'desc' } });
@@ -427,6 +465,9 @@ exports.getDocuments = async (req, res) => {
 exports.uploadDocument = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    if (req.file.mimetype !== 'application/pdf') return res.status(400).json({ error: 'Only PDF files are allowed' });
+    if (req.file.size > 10 * 1024 * 1024) return res.status(400).json({ error: 'File too large. Max 10 MB.' });
+
     const placement = await getCurrentPlacement(req.user.id);
     const document = await prisma.document.create({
       data: {

@@ -43,6 +43,8 @@ export default function MyPlacement() {
   const [justification, setJustification] = useState('');
   const [proposedDetails, setProposedDetails] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [changeError, setChangeError] = useState(null);
+  const [uploadError, setUploadError] = useState(null);
 
   const load = () => {
     api.get('/student/placement').then(({ data }) => setPlacement(data)).catch(() => setNotFound(true));
@@ -80,6 +82,7 @@ export default function MyPlacement() {
     e.preventDefault();
     if (!docFile) return;
     setSubmitting(true);
+    setUploadError(null);
     const formData = new FormData();
     formData.append('file', docFile);
     formData.append('category', docCategory);
@@ -87,6 +90,8 @@ export default function MyPlacement() {
       await api.post('/student/documents', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       setDocFile(null); setShowUploadModal(false);
       load();
+    } catch (err) {
+      setUploadError(err.response?.data?.error || 'Could not upload document');
     } finally {
       setSubmitting(false);
     }
@@ -95,11 +100,14 @@ export default function MyPlacement() {
   const submitChangeRequest = async (e) => {
     e.preventDefault();
     setSubmitting(true);
+    setChangeError(null);
     const details = proposedDetails ? `${justification}\n\nProposed: ${proposedDetails}` : justification;
     try {
       await api.post('/student/change-requests', { requestType: changeType, details });
       setChangeType(''); setJustification(''); setProposedDetails(''); setShowChangeModal(false);
       load();
+    } catch (err) {
+      setChangeError(err.response?.data?.error || 'Could not submit change request');
     } finally {
       setSubmitting(false);
     }
@@ -282,9 +290,10 @@ export default function MyPlacement() {
       )}
 
       {showUploadModal && (
-        <div className="modal-backdrop" onClick={() => setShowUploadModal(false)}>
+        <div className="modal-backdrop" onClick={() => { setShowUploadModal(false); setUploadError(null); }}>
           <div className="modal" style={{ maxWidth: 520 }} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.375rem', color: 'var(--navy)', marginBottom: '1.5rem' }}>Upload Document</h3>
+            {uploadError && <div className="alert alert-danger" style={{ marginBottom: '1.25rem' }}>{uploadError}</div>}
             <form onSubmit={uploadDocument}>
               <div className="form-group" style={{ marginBottom: '1.25rem' }}>
                 <label>Document Type</label>
@@ -293,17 +302,17 @@ export default function MyPlacement() {
                 </select>
               </div>
               <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                <label>File (max 10 MB)</label>
+                <label>File (PDF, max 10 MB)</label>
                 <label className="upload-zone" htmlFor="docFileInput">
                   <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>📎</div>
                   <p><strong>Click to choose file</strong> or drag and drop</p>
-                  <p style={{ fontSize: '0.8125rem', color: 'var(--muted)', marginTop: '0.25rem' }}>PDF, DOC, or image · max 10 MB</p>
+                  <p style={{ fontSize: '0.8125rem', color: 'var(--muted)', marginTop: '0.25rem' }}>PDF only · max 10 MB</p>
                 </label>
-                <input id="docFileInput" type="file" style={{ display: 'none' }} onChange={(e) => setDocFile(e.target.files[0])} />
+                <input id="docFileInput" type="file" accept=".pdf" style={{ display: 'none' }} onChange={(e) => setDocFile(e.target.files[0])} />
                 {docFile && <p style={{ fontSize: '0.875rem', color: 'var(--success)', marginTop: '0.5rem' }}>{docFile.name}</p>}
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-                <button type="button" className="btn btn-ghost" onClick={() => setShowUploadModal(false)}>Cancel</button>
+                <button type="button" className="btn btn-ghost" onClick={() => { setShowUploadModal(false); setUploadError(null); }}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={submitting || !docFile}>{submitting ? 'Uploading...' : 'Upload →'}</button>
               </div>
             </form>
@@ -312,12 +321,13 @@ export default function MyPlacement() {
       )}
 
       {showChangeModal && (
-        <div className="modal-backdrop" onClick={() => setShowChangeModal(false)}>
+        <div className="modal-backdrop" onClick={() => { setShowChangeModal(false); setChangeError(null); }}>
           <div className="modal" style={{ maxWidth: 560 }} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ fontFamily: "'Playfair Display', serif", fontSize: '1.375rem', color: 'var(--navy)', marginBottom: '0.5rem' }}>Request Placement Change</h3>
             <p style={{ color: 'var(--muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
               Your request will be sent to your tutor for review.
             </p>
+            {changeError && <div className="alert alert-danger" style={{ marginBottom: '1.25rem' }}>{changeError}</div>}
             <form onSubmit={submitChangeRequest}>
               <div className="form-group" style={{ marginBottom: '1.25rem' }}>
                 <label>Type of Change <span style={{ color: 'var(--danger)' }}>*</span></label>
@@ -336,7 +346,7 @@ export default function MyPlacement() {
                 <small style={{ color: 'var(--muted)' }}>Provide the specific new values you are requesting.</small>
               </div>
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
-                <button type="button" className="btn btn-ghost" onClick={() => setShowChangeModal(false)}>Cancel</button>
+                <button type="button" className="btn btn-ghost" onClick={() => { setShowChangeModal(false); setChangeError(null); }}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={submitting}>{submitting ? 'Submitting...' : 'Submit Change Request →'}</button>
               </div>
             </form>

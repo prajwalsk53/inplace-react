@@ -16,6 +16,7 @@ router.get('/placement-request', studentController.getPlacementRequestContext);
 router.post('/placement-request', upload.array('documents', 10), studentController.submitPlacementRequest);
 
 router.get('/visits', studentController.getVisits);
+router.put('/visits/:id/notes', studentController.saveVisitNote);
 
 router.get('/reflections', studentController.getReflections);
 router.post('/reflections', studentController.createReflection);
