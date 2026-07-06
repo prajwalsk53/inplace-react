@@ -6,6 +6,7 @@ const { authenticate, requireRole } = require('../middleware/auth');
 router.use(authenticate, requireRole('TUTOR'));
 
 router.get('/dashboard', tutorController.getDashboard);
+router.get('/dashboard-metrics', tutorController.getDashboardMetrics);
 
 router.get('/placements', tutorController.getPlacements);
 router.get('/placements/at-risk', tutorController.getAtRiskPlacements);

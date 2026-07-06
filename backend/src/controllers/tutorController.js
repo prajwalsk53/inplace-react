@@ -24,15 +24,60 @@ async function atRiskPlacementIds(tutorId) {
 
 exports.getDashboard = async (req, res) => {
   try {
-    const tutorId = req.user.id;
-    const [totalPlacements, activePlacements, upcomingVisits, pendingRequests, atRisk] = await Promise.all([
-      prisma.placement.count({ where: { tutorId } }),
-      prisma.placement.count({ where: { tutorId, status: 'ACTIVE' } }),
-      prisma.visit.count({ where: { tutorId, status: 'scheduled', scheduledAt: { gte: new Date() } } }),
-      prisma.placementChangeRequest.count({ where: { status: 'PENDING', placement: { tutorId } } }),
-      atRiskPlacementIds(tutorId),
+    const [unreadCount, pendingRequests, totalActive] = await Promise.all([
+      prisma.message.count({ where: { receiverId: req.user.id, isRead: false } }),
+      prisma.placement.count({ where: { status: { in: ['SUBMITTED', 'AWAITING_TUTOR', 'AWAITING_PROVIDER'] } } }),
+      prisma.placement.count({ where: { status: { in: ['APPROVED', 'ACTIVE'] } } }),
     ]);
-    res.json({ totalPlacements, activePlacements, upcomingVisits, pendingRequests, atRiskCount: atRisk.length });
+    res.json({ unreadCount, pendingRequests, totalActive });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+function isoWeekKey(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = (d.getUTCDay() + 6) % 7;
+  d.setUTCDate(d.getUTCDate() - dayNum + 3);
+  const firstThursday = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
+  const week = 1 + Math.round(((d - firstThursday) / 86400000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7);
+  return `${d.getUTCFullYear()}-${String(week).padStart(2, '0')}`;
+}
+
+exports.getDashboardMetrics = async (req, res) => {
+  try {
+    const [statusGroups, placementCities, reflections, visitGroups] = await Promise.all([
+      prisma.placement.groupBy({ by: ['status'], _count: { _all: true } }),
+      prisma.placement.findMany({ select: { company: { select: { city: true } } } }),
+      prisma.reflection.findMany({ select: { createdAt: true } }),
+      prisma.visit.groupBy({ by: ['status'], _count: { _all: true } }),
+    ]);
+
+    const status = statusGroups.map((g) => ({ status: g.status.toLowerCase(), cnt: g._count._all }));
+
+    const cityCounts = {};
+    for (const p of placementCities) {
+      const city = p.company?.city?.trim() || 'Unknown';
+      cityCounts[city] = (cityCounts[city] || 0) + 1;
+    }
+    const city = Object.entries(cityCounts)
+      .map(([city, cnt]) => ({ city, cnt }))
+      .sort((a, b) => b.cnt - a.cnt)
+      .slice(0, 8);
+
+    const weekCounts = {};
+    for (const r of reflections) {
+      const key = isoWeekKey(r.createdAt);
+      weekCounts[key] = (weekCounts[key] || 0) + 1;
+    }
+    const reflectionTrend = Object.entries(weekCounts)
+      .sort((a, b) => (a[0] < b[0] ? -1 : 1))
+      .slice(-12)
+      .map(([week, cnt]) => ({ week, cnt }));
+
+    const visits = visitGroups.map((g) => ({ status: g.status, cnt: g._count._all }));
+
+    res.json({ charts: { status, city, reflectionTrend, visits }, ts: Date.now() });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

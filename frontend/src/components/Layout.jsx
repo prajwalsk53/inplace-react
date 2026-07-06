@@ -3,14 +3,14 @@ import Sidebar from './Sidebar';
 import { useAuth } from '../context/AuthContext';
 
 const pageTitles = {
-  '/student/dashboard': ['Dashboard', 'Welcome back'],
+  '/student/dashboard': ['Dashboard', null],
   '/student/my-placement': ['My Placement', 'Your current placement details'],
   '/student/submit-request': ['Submit Request', 'New Placement Authorisation Request'],
   '/student/reports': ['Reports', 'Submit your interim and final placement reports'],
   '/student/visits': ['Visits', 'Your scheduled tutor visits'],
   '/student/announcements': ['Announcements', 'Messages from your placement team'],
 
-  '/tutor/dashboard': ['Dashboard', 'Tutor overview'],
+  '/tutor/dashboard': ['Dashboard', null],
   '/tutor/placements': ['All Placements', 'View and manage all student placements'],
   '/tutor/create-placement': ['Create Placement', 'Set up a new student placement'],
   '/tutor/visits': ['Visits', 'Manage placement visits'],
@@ -54,7 +54,9 @@ export default function Layout({ children }) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [title, subtitle] = pageTitles[location.pathname] || ['InPlace', ''];
+  const [title, staticSubtitle] = pageTitles[location.pathname] || ['InPlace', ''];
+  const isWelcomeDashboard = location.pathname === '/student/dashboard' || location.pathname === '/tutor/dashboard';
+  const subtitle = isWelcomeDashboard ? `Welcome back, ${user?.fullName?.split(' ')[0] || ''}` : staticSubtitle;
 
   const handleLogout = () => {
     logout();
