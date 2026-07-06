@@ -7,6 +7,16 @@ const placementInclude = {
   tutor: { select: { id: true, fullName: true, email: true, avatarInitials: true } },
 };
 
+function audienceTargetingWhere(user) {
+  return {
+    OR: [
+      { audienceType: 'all' },
+      { audienceType: 'year', targetValue: user.academicYear || '__none__' },
+      { audienceType: 'programme', targetValue: user.programmeType || '__none__' },
+    ],
+  };
+}
+
 async function getCurrentPlacement(studentId) {
   return prisma.placement.findFirst({
     where: { studentId, status: { in: ['APPROVED', 'ACTIVE'] } },
@@ -44,7 +54,12 @@ exports.getDashboard = async (req, res) => {
         : null,
       prisma.message.count({ where: { receiverId: studentId, isRead: false } }),
       prisma.announcement.findMany({
-        where: { OR: [{ audienceRole: null }, { audienceRole: 'STUDENT' }] },
+        where: {
+          AND: [
+            { OR: [{ audienceRole: null }, { audienceRole: 'STUDENT' }] },
+            audienceTargetingWhere(req.user),
+          ],
+        },
         include: { postedBy: { select: { fullName: true } }, reads: { where: { userId: studentId } } },
         orderBy: { createdAt: 'desc' },
         take: 10,
@@ -494,6 +509,7 @@ exports.getAnnouncements = async (req, res) => {
         AND: [
           { OR: [{ audienceRole: null }, { audienceRole: 'STUDENT' }] },
           { OR: [{ expiresAt: null }, { expiresAt: { gte: new Date() } }] },
+          audienceTargetingWhere(req.user),
         ],
       },
       include: { postedBy: { select: { fullName: true, avatarInitials: true } }, reads: { where: { userId } } },

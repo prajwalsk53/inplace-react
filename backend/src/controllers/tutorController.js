@@ -395,8 +395,18 @@ exports.giveReportFeedback = async (req, res) => {
 
 exports.getAnnouncements = async (req, res) => {
   try {
-    const announcements = await prisma.announcement.findMany({ orderBy: { createdAt: 'desc' } });
-    res.json(announcements);
+    const [announcements, totalStudents] = await Promise.all([
+      prisma.announcement.findMany({
+        where: { postedById: req.user.id },
+        include: { _count: { select: { reads: true } } },
+        orderBy: [{ isPinned: 'desc' }, { createdAt: 'desc' }],
+      }),
+      prisma.user.count({ where: { role: 'STUDENT', isActive: true } }),
+    ]);
+    res.json({
+      totalStudents,
+      announcements: announcements.map((a) => ({ ...a, readCount: a._count.reads, _count: undefined })),
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -404,17 +414,69 @@ exports.getAnnouncements = async (req, res) => {
 
 exports.createAnnouncement = async (req, res) => {
   try {
-    const { title, content, audienceRole, isPinned, expiresAt } = req.body;
+    const { title, content, audienceRole, audienceType, targetValue, isPinned, expiresAt } = req.body;
     const announcement = await prisma.announcement.create({
       data: {
         title, content,
         audienceRole: audienceRole ? audienceRole.toUpperCase() : null,
+        audienceType: audienceType || 'all',
+        targetValue: audienceType && audienceType !== 'all' ? targetValue : null,
         isPinned: !!isPinned,
         expiresAt: expiresAt ? new Date(expiresAt) : null,
         postedById: req.user.id,
       },
     });
     res.status(201).json(announcement);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateAnnouncement = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const existing = await prisma.announcement.findFirst({ where: { id, postedById: req.user.id } });
+    if (!existing) return res.status(404).json({ error: 'Announcement not found' });
+
+    const { title, content, audienceType, targetValue, isPinned, expiresAt } = req.body;
+    const announcement = await prisma.announcement.update({
+      where: { id },
+      data: {
+        title, content,
+        audienceType: audienceType || 'all',
+        targetValue: audienceType && audienceType !== 'all' ? targetValue : null,
+        isPinned: !!isPinned,
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+      },
+    });
+    res.json(announcement);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.deleteAnnouncement = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const existing = await prisma.announcement.findFirst({ where: { id, postedById: req.user.id } });
+    if (!existing) return res.status(404).json({ error: 'Announcement not found' });
+
+    await prisma.announcementRead.deleteMany({ where: { announcementId: id } });
+    await prisma.announcement.delete({ where: { id } });
+    res.json({ message: 'Announcement deleted.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.togglePinAnnouncement = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const existing = await prisma.announcement.findFirst({ where: { id, postedById: req.user.id } });
+    if (!existing) return res.status(404).json({ error: 'Announcement not found' });
+
+    const announcement = await prisma.announcement.update({ where: { id }, data: { isPinned: !existing.isPinned } });
+    res.json(announcement);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

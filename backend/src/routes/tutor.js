@@ -37,6 +37,9 @@ router.put('/reports/:id/feedback', tutorController.giveReportFeedback);
 
 router.get('/announcements', tutorController.getAnnouncements);
 router.post('/announcements', tutorController.createAnnouncement);
+router.put('/announcements/:id', tutorController.updateAnnouncement);
+router.delete('/announcements/:id', tutorController.deleteAnnouncement);
+router.post('/announcements/:id/toggle-pin', tutorController.togglePinAnnouncement);
 
 router.get('/map', tutorController.getMapPlacements);
 

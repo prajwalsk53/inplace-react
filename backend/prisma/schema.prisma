@@ -284,6 +284,8 @@ model Announcement {
   title        String
   content      String
   audienceRole Role?
+  audienceType String    @default("all")
+  targetValue  String?
   isPinned     Boolean   @default(false)
   expiresAt    DateTime?
   postedById   Int
