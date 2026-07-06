@@ -29,7 +29,7 @@ async function seed() {
     name: 'Acme Digital Ltd',
     address: '12 Innovation Way, Leicester, LE1 6TP',
     city: 'Leicester',
-    sector: 'Technology',
+    sector: 'Technology & Software',
     contactName: 'Sarah Collins',
     contactEmail: 'sarah.collins@acmedigital.example',
     contactPhone: '0116 555 0134',

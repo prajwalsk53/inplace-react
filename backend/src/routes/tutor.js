@@ -31,6 +31,9 @@ router.post('/visits/:id/cancel', tutorController.cancelVisit);
 router.get('/visits/:id/ics', tutorController.downloadVisitIcs);
 
 router.get('/providers', tutorController.getProviders);
+router.get('/providers/sectors', tutorController.getProviderSectors);
+router.put('/providers/:id', tutorController.updateProvider);
+router.delete('/providers/:id', tutorController.deleteProvider);
 router.get('/provider-meetings', tutorController.getProviderMeetings);
 router.post('/provider-meetings', tutorController.requestProviderMeeting);
 

@@ -91,6 +91,9 @@ model Company {
   contactName  String?
   contactEmail String?
   contactPhone String?
+  website      String?
+  phone        String?
+  description  String?
   latitude     Float?
   longitude    Float?
   createdAt    DateTime @default(now())

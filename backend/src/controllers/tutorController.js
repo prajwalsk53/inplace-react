@@ -499,11 +499,81 @@ exports.downloadVisitIcs = async (req, res) => {
 
 exports.getProviders = async (req, res) => {
   try {
+    const { search, sector } = req.query;
+    const where = { AND: [] };
+    if (search) {
+      where.AND.push({
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { city: { contains: search, mode: 'insensitive' } },
+          { contactEmail: { contains: search, mode: 'insensitive' } },
+        ],
+      });
+    }
+    if (sector) where.AND.push({ sector });
+
     const companies = await prisma.company.findMany({
-      include: { _count: { select: { placements: true } } },
-      orderBy: { name: 'asc' },
+      where: where.AND.length ? where : undefined,
+      include: {
+        placements: { select: { status: true } },
+        users: { where: { role: 'PROVIDER', isActive: true }, select: { fullName: true, email: true }, take: 1 },
+      },
     });
-    res.json(companies);
+
+    const result = companies
+      .map((c) => {
+        const totalPlacements = c.placements.length;
+        const activePlacements = c.placements.filter((p) => ['APPROVED', 'ACTIVE'].includes(p.status)).length;
+        const providerUser = c.users[0] || null;
+        const { placements, users, ...rest } = c;
+        return {
+          ...rest,
+          totalPlacements,
+          activePlacements,
+          providerUserName: providerUser?.fullName || null,
+          providerUserEmail: providerUser?.email || null,
+        };
+      })
+      .sort((a, b) => b.activePlacements - a.activePlacements || b.totalPlacements - a.totalPlacements || a.name.localeCompare(b.name));
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.getProviderSectors = async (req, res) => {
+  try {
+    const rows = await prisma.company.findMany({ where: { sector: { not: null } }, select: { sector: true }, distinct: ['sector'] });
+    res.json(rows.map((r) => r.sector).filter(Boolean).sort());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateProvider = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { name, address, city, sector, website, phone, contactName, contactEmail, contactPhone, description } = req.body;
+    if (!name) return res.status(400).json({ error: 'Company name is required.' });
+
+    const company = await prisma.company.update({
+      where: { id },
+      data: { name, address, city, sector, website, phone, contactName, contactEmail, contactPhone, description },
+    });
+    res.json(company);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.deleteProvider = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const placementCount = await prisma.placement.count({ where: { companyId: id } });
+    if (placementCount > 0) return res.status(400).json({ error: 'Cannot delete — this company has placement records.' });
+    await prisma.company.delete({ where: { id } });
+    res.json({ message: 'Company deleted.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
