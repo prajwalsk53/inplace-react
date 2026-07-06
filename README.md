@@ -74,13 +74,13 @@ Or from the repo root, `start.bat` launches both at once (Windows).
 
 | Role | Email |
 | --- | --- |
-| Student | student@inplace.com |
-| Tutor | tutor@inplace.com |
-| Provider | provider@inplace.com |
-| Director | director@inplace.com |
-| Admin | admin@inplace.com |
+| Student | liam.wilson@student.le.ac.uk |
+| Tutor | tutor.leicester.ac.uk@gmail.com |
+| Provider | provider1@leicester.ac.uk |
+| Director | Director.leicester.ac.uk@gmail.com |
+| Admin | admin.leicester.ac.uk@gmail.com |
 
-There's also a `pending.student@inplace.com` account seeded with `PENDING` approval status, useful for testing the admin approval flow.
+There's also a `samuel.fox@student.le.ac.uk` account with `PENDING` approval status, useful for testing the admin approval flow.
 
 ## Portals
 

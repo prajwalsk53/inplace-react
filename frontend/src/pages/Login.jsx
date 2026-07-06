@@ -4,11 +4,11 @@ import { useAuth } from '../context/AuthContext';
 import '../styles/login.css';
 
 const DEMO_ACCOUNTS = [
-  { icon: '🛡️', role: 'Admin', email: 'admin@inplace.com' },
-  { icon: '👩‍🏫', role: 'Tutor', email: 'tutor@inplace.com' },
-  { icon: '🏢', role: 'Provider', email: 'provider@inplace.com' },
-  { icon: '🎓', role: 'Director', email: 'director@inplace.com' },
-  { icon: '🧑‍🎓', role: 'Student', email: 'student@inplace.com' },
+  { icon: '🛡️', role: 'Admin', email: 'admin.leicester.ac.uk@gmail.com' },
+  { icon: '👩‍🏫', role: 'Tutor', email: 'tutor.leicester.ac.uk@gmail.com' },
+  { icon: '🏢', role: 'Provider', email: 'provider1@leicester.ac.uk' },
+  { icon: '🎓', role: 'Director', email: 'Director.leicester.ac.uk@gmail.com' },
+  { icon: '🧑‍🎓', role: 'Student', email: 'liam.wilson@student.le.ac.uk' },
 ];
 
 const dashboardRoute = {
