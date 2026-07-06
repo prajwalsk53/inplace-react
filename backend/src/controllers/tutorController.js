@@ -296,16 +296,16 @@ exports.updatePlacement = async (req, res) => {
     const existing = await prisma.placement.findFirst({ where: { id } });
     if (!existing) return res.status(404).json({ error: 'Placement not found' });
 
-    const { roleTitle, jobDescription, startDate, endDate, salary, workingPattern, supervisorName, supervisorEmail, supervisorPhone, status } = req.body;
+    const { roleTitle, jobDescription, startDate, endDate, salary, workingPattern } = req.body;
     const placement = await prisma.placement.update({
       where: { id },
       data: {
-        roleTitle, jobDescription,
+        roleTitle: roleTitle !== undefined ? roleTitle : undefined,
+        jobDescription: jobDescription !== undefined ? jobDescription : undefined,
         startDate: startDate ? new Date(startDate) : undefined,
         endDate: endDate ? new Date(endDate) : undefined,
         salary: salary !== undefined ? (salary || null) : undefined,
-        workingPattern, supervisorName, supervisorEmail, supervisorPhone,
-        status: status || undefined,
+        workingPattern: workingPattern !== undefined ? workingPattern : undefined,
       },
     });
     await logAction(req.user.id, 'update_placement', 'placements', id);
@@ -318,13 +318,16 @@ exports.updatePlacement = async (req, res) => {
 exports.terminatePlacement = async (req, res) => {
   try {
     const id = Number(req.params.id);
+    const reason = (req.body.reason || '').trim();
+    if (!reason) return res.status(400).json({ error: 'A termination reason is required.' });
+
     const existing = await prisma.placement.findFirst({ where: { id } });
     if (!existing) return res.status(404).json({ error: 'Placement not found' });
     const placement = await prisma.placement.update({ where: { id }, data: { status: 'TERMINATED' } });
     await prisma.notification.create({
-      data: { userId: placement.studentId, type: 'placement', title: 'Placement terminated', body: req.body.reason || 'Your placement has been terminated.', link: '/student/my-placement' },
+      data: { userId: placement.studentId, type: 'placement_terminated', title: 'Placement terminated', body: `Your placement has been terminated by your tutor. Reason: ${reason}`, link: '/student/my-placement' },
     });
-    await logAction(req.user.id, 'terminate_placement', 'placements', id, req.body.reason);
+    await logAction(req.user.id, 'terminate_placement', 'placements', id, reason);
     res.json(placement);
   } catch (err) {
     res.status(500).json({ error: err.message });

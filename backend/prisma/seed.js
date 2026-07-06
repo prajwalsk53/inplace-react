@@ -92,7 +92,13 @@ async function seed() {
   };
   const placement = await prisma.placement.upsert({
     where: { id: 1 },
-    update: { ...placementDates },
+    update: {
+      ...placementDates,
+      roleTitle: 'Software Engineering Intern',
+      jobDescription: 'Working within the platform team on internal tooling.',
+      salary: '£22,000',
+      status: 'ACTIVE',
+    },
     create: {
       studentId: student.id,
       companyId: company.id,

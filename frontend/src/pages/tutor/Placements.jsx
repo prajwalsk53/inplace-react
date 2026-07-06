@@ -17,6 +17,7 @@ export default function TutorPlacements() {
   const [expanded, setExpanded] = useState(new Set());
   const [terminateTarget, setTerminateTarget] = useState(null);
   const [terminateReason, setTerminateReason] = useState('');
+  const [terminateError, setTerminateError] = useState(null);
   const navigate = useNavigate();
 
   const status = searchParams.get('status') || '';
@@ -79,12 +80,18 @@ export default function TutorPlacements() {
   const openTerminate = (placement) => {
     setTerminateTarget(placement);
     setTerminateReason('');
+    setTerminateError(null);
   };
 
   const confirmTerminate = async () => {
-    await api.post(`/tutor/placements/${terminateTarget.id}/terminate`, { reason: terminateReason });
-    setTerminateTarget(null);
-    load();
+    setTerminateError(null);
+    try {
+      await api.post(`/tutor/placements/${terminateTarget.id}/terminate`, { reason: terminateReason });
+      setTerminateTarget(null);
+      load();
+    } catch (err) {
+      setTerminateError(err.response?.data?.error || 'Could not terminate placement');
+    }
   };
 
   const hasFilters = search || status || location || company;
@@ -215,6 +222,7 @@ export default function TutorPlacements() {
             <p style={{ color: 'var(--muted)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
               You are about to terminate {terminateTarget.student.fullName}'s placement. This action will notify the student and mark the placement as terminated.
             </p>
+            {terminateError && <div className="alert alert-danger" style={{ marginBottom: '1rem' }}>{terminateError}</div>}
             <div className="form-group" style={{ marginBottom: '1.5rem' }}>
               <label>Reason for termination <span style={{ color: 'var(--danger)' }}>*</span></label>
               <textarea
