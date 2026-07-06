@@ -780,13 +780,13 @@ exports.respondChangeRequest = async (req, res) => {
   }
 };
 
-exports.getReflectionsAndReports = async (req, res) => {
+exports.getReflections = async (req, res) => {
   try {
-    const [reflections, reports] = await Promise.all([
-      prisma.reflection.findMany({ where: { placement: { tutorId: req.user.id } }, include: { student: { select: { fullName: true } }, placement: { select: { roleTitle: true } } }, orderBy: { createdAt: 'desc' } }),
-      prisma.report.findMany({ where: { placement: { tutorId: req.user.id } }, include: { student: { select: { fullName: true } }, placement: { select: { roleTitle: true } } }, orderBy: { submittedAt: 'desc' } }),
-    ]);
-    res.json({ reflections, reports });
+    const reflections = await prisma.reflection.findMany({
+      include: { student: { select: { fullName: true } }, placement: { select: { roleTitle: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ reflections });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -803,12 +803,115 @@ exports.giveReflectionFeedback = async (req, res) => {
   }
 };
 
-exports.giveReportFeedback = async (req, res) => {
+const REPORT_CATEGORIES = ['interim_report', 'final_report'];
+
+exports.getReports = async (req, res) => {
+  try {
+    const { type, status, search } = req.query;
+    const where = { AND: [{ category: { in: REPORT_CATEGORIES } }] };
+    where.AND.push(type ? { category: type } : {});
+    where.AND.push(status ? { status } : { status: { not: 'rejected' } });
+    if (search) {
+      where.AND.push({
+        OR: [
+          { uploadedBy: { fullName: { contains: search, mode: 'insensitive' } } },
+          { placement: { company: { name: { contains: search, mode: 'insensitive' } } } },
+        ],
+      });
+    }
+
+    const reports = await prisma.document.findMany({
+      where,
+      include: {
+        uploadedBy: { select: { fullName: true, email: true, avatarInitials: true } },
+        placement: { select: { roleTitle: true, startDate: true, endDate: true, company: { select: { name: true } } } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    const order = ['pending', 'approved', 'revision_needed'];
+    reports.sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status));
+
+    const statsRaw = await prisma.document.groupBy({
+      by: ['category', 'status'],
+      where: { category: { in: REPORT_CATEGORIES } },
+      _count: { _all: true },
+    });
+    const stats = { interimPending: 0, interimApproved: 0, finalPending: 0, finalApproved: 0, revisionNeeded: 0 };
+    statsRaw.forEach((s) => {
+      if (s.category === 'interim_report' && s.status === 'pending_review') stats.interimPending = s._count._all;
+      else if (s.category === 'interim_report' && s.status === 'approved') stats.interimApproved = s._count._all;
+      else if (s.category === 'final_report' && s.status === 'pending_review') stats.finalPending = s._count._all;
+      else if (s.category === 'final_report' && s.status === 'approved') stats.finalApproved = s._count._all;
+      else if (s.status === 'revision_needed') stats.revisionNeeded += s._count._all;
+    });
+
+    const activePlacements = await prisma.placement.findMany({
+      where: { status: { in: ['APPROVED', 'ACTIVE'] } },
+      include: {
+        student: { select: { id: true, fullName: true, email: true } },
+        company: { select: { name: true } },
+        documents: { where: { category: { in: REPORT_CATEGORIES } }, select: { category: true } },
+      },
+      orderBy: { endDate: 'asc' },
+    });
+    const missing = activePlacements
+      .map((p) => ({
+        studentId: p.student.id, studentName: p.student.fullName, studentEmail: p.student.email,
+        companyName: p.company.name, startDate: p.startDate, endDate: p.endDate,
+        interimSubmitted: p.documents.some((d) => d.category === 'interim_report'),
+        finalSubmitted: p.documents.some((d) => d.category === 'final_report'),
+      }))
+      .filter((p) => !p.interimSubmitted || !p.finalSubmitted);
+
+    res.json({ reports, stats, missing });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.reviewReport = async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const { tutorFeedback } = req.body;
-    const report = await prisma.report.update({ where: { id }, data: { tutorFeedback, status: 'reviewed', reviewedAt: new Date() } });
-    res.json(report);
+    const { action, feedback } = req.body; // 'approved' | 'revision_needed'
+    if (!['approved', 'revision_needed'].includes(action)) return res.status(400).json({ error: 'Invalid action' });
+
+    const existing = await prisma.document.findFirst({ where: { id, category: { in: REPORT_CATEGORIES } } });
+    if (!existing) return res.status(404).json({ error: 'Report not found' });
+
+    const report = await prisma.document.update({
+      where: { id },
+      data: { status: action, reviewerFeedback: feedback || null, reviewedAt: new Date(), reviewedById: req.user.id },
+    });
+
+    const msg = action === 'approved'
+      ? `Your report has been approved by your placement tutor.${feedback ? ` Feedback: ${feedback}` : ''}`
+      : `Your report requires revisions. Tutor feedback: ${feedback}`;
+    await prisma.notification.create({
+      data: { userId: existing.uploadedById, type: 'report_reviewed', title: action === 'approved' ? 'Report approved' : 'Report needs revision', body: msg, link: '/student/reports' },
+    });
+
+    res.json({
+      report,
+      message: action === 'approved' ? '✅ Report approved successfully!' : '📝 Revision request sent to student.',
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.sendReportReminder = async (req, res) => {
+  try {
+    const { studentId, studentEmail, studentName, missingTypes } = req.body;
+    if (!studentEmail || !missingTypes?.length) {
+      return res.status(400).json({ error: 'Could not send reminder: student email or report type is missing.' });
+    }
+    const { mailReportReminder } = require('../utils/mailer');
+    const sent = await mailReportReminder(studentEmail, studentName, missingTypes, req.user.fullName);
+    if (sent) {
+      res.json({ message: `Reminder sent to ${studentName} (${studentEmail}) successfully.` });
+    } else {
+      res.status(500).json({ error: 'Email failed to send.' });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

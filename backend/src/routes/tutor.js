@@ -44,9 +44,12 @@ router.post('/placement-requests/:id/respond', tutorController.respondPlacementR
 router.get('/requests', tutorController.getChangeRequests);
 router.post('/requests/:id/respond', tutorController.respondChangeRequest);
 
-router.get('/reports', tutorController.getReflectionsAndReports);
+router.get('/reflections', tutorController.getReflections);
 router.put('/reflections/:id/feedback', tutorController.giveReflectionFeedback);
-router.put('/reports/:id/feedback', tutorController.giveReportFeedback);
+
+router.get('/reports', tutorController.getReports);
+router.post('/reports/:id/review', tutorController.reviewReport);
+router.post('/reports/remind', tutorController.sendReportReminder);
 
 router.get('/announcements', tutorController.getAnnouncements);
 router.post('/announcements', tutorController.createAnnouncement);

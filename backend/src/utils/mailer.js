@@ -79,6 +79,15 @@ function mailAccountRejected(email, name, reason) {
   return sendEmail(email, name, 'InPlace — Application Decision', mailTemplate('Application Not Approved', body));
 }
 
+function mailReportReminder(email, name, missingTypes, tutorName) {
+  const missingList = missingTypes.map((t) => t.charAt(0).toUpperCase() + t.slice(1)).join(' and ') + ' Report' + (missingTypes.length > 1 ? 's' : '');
+  const body = p(`Dear <strong>${name}</strong>,`)
+    + p(`This is a reminder that your <strong>${missingList}</strong> for your placement has not yet been submitted on InPlace.`)
+    + p('Please log in and upload your report as soon as possible.')
+    + p(`If you have any questions, please contact your tutor ${tutorName} directly.`);
+  return sendEmail(email, name, `InPlace — Report Reminder: ${missingList} Required`, mailTemplate('Placement Report Reminder', body, 'Submit My Report', `${APP_URL}/student/reports`));
+}
+
 function mailPlacementApproved(email, name, companyName) {
   const body = p(`Dear <strong>${name}</strong>,`)
     + p(`🎉 Great news! Your placement at <strong>${companyName}</strong> has been <strong style="color:#059669;">approved</strong> by your Placement Tutor. You can now log in and view your full placement details.`);
@@ -219,5 +228,5 @@ module.exports = {
   mailWelcome, mailAccountApproved, mailAccountRejected,
   mailOtp, mailPasswordReset, mailProviderConfirm, mailNewMessage, mailVisitScheduled,
   mailPlacementRequestSubmitted, mailChangeRequestSubmitted, mailProviderMeetingScheduled,
-  mailPlacementApproved, mailPlacementRejected,
+  mailPlacementApproved, mailPlacementRejected, mailReportReminder,
 };

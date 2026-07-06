@@ -45,7 +45,7 @@ exports.getDashboard = async (req, res) => {
     }));
 
     const [reportCount, nextVisit, unreadMessages, rawAnnouncements] = await Promise.all([
-      prisma.report.count({ where: { studentId } }),
+      prisma.document.count({ where: { uploadedById: studentId, category: { in: ['interim_report', 'final_report'] } } }),
       activePlacement
         ? prisma.visit.findFirst({
             where: { placementId: activePlacement.id, status: 'scheduled', scheduledAt: { gte: new Date() } },
@@ -408,15 +408,15 @@ exports.getReports = async (req, res) => {
     let finalReport = null;
     if (placement) {
       [interimReport, finalReport] = await Promise.all([
-        prisma.report.findFirst({ where: { placementId: placement.id, studentId, reportType: 'interim' }, orderBy: { submittedAt: 'desc' } }),
-        prisma.report.findFirst({ where: { placementId: placement.id, studentId, reportType: 'final' }, orderBy: { submittedAt: 'desc' } }),
+        prisma.document.findFirst({ where: { placementId: placement.id, uploadedById: studentId, category: 'interim_report' }, orderBy: { createdAt: 'desc' } }),
+        prisma.document.findFirst({ where: { placementId: placement.id, uploadedById: studentId, category: 'final_report' }, orderBy: { createdAt: 'desc' } }),
       ]);
     }
 
     let reviewed = 0, pending = 0, overdue = 0, upcoming = 0;
     if (placement) {
       if (finalReport) {
-        if (finalReport.status === 'reviewed') reviewed += 1; else pending += 1;
+        if (finalReport.status === 'approved') reviewed += 1; else pending += 1;
       } else {
         const today = new Date();
         if (finalDue && today > finalDue) overdue += 1;
@@ -448,17 +448,18 @@ exports.uploadReport = async (req, res) => {
     const placement = await prisma.placement.findFirst({ where: { studentId: req.user.id, status: { in: ['APPROVED', 'ACTIVE'] } } });
     if (!placement) return res.status(404).json({ error: 'No active placement' });
 
-    const existing = await prisma.report.findFirst({ where: { placementId: placement.id, studentId: req.user.id, reportType } });
+    const category = reportType === 'interim' ? 'interim_report' : 'final_report';
+    const existing = await prisma.document.findFirst({ where: { placementId: placement.id, uploadedById: req.user.id, category } });
     if (existing) return res.status(400).json({ error: `${reportType === 'interim' ? 'Interim' : 'Final'} report has already been submitted` });
 
-    const report = await prisma.report.create({
+    const report = await prisma.document.create({
       data: {
         placementId: placement.id,
-        studentId: req.user.id,
-        title: `${reportType === 'interim' ? 'Interim' : 'Final'} Placement Report`,
-        reportType,
+        uploadedById: req.user.id,
+        fileName: req.file.originalname,
         filePath: fileUrl(req.file.filename),
         fileSize: req.file.size,
+        category,
         status: 'pending',
       },
     });

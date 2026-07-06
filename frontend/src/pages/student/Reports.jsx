@@ -6,10 +6,10 @@ const fmtSize = (bytes) => (bytes ? `${Math.round(bytes / 1024)} KB` : '');
 
 function statusBadge(status) {
   const s = (status || 'pending').toLowerCase();
-  if (s === 'reviewed' || s === 'approved') return ['badge-approved', 'Reviewed'];
-  if (s === 'rejected') return ['badge-rejected', 'Rejected'];
-  if (s === 'pending') return ['badge-pending', 'Pending'];
-  return ['badge-open', s.charAt(0).toUpperCase() + s.slice(1) || 'Submitted'];
+  if (s === 'approved') return ['badge-approved', 'Approved'];
+  if (s === 'revision_needed') return ['badge-open', 'Needs Revision'];
+  if (s === 'pending' || s === 'pending_review') return ['badge-pending', 'Pending Review'];
+  return ['badge-pending', s.charAt(0).toUpperCase() + s.slice(1)];
 }
 
 function ReportUploadSection({ label, report, due, reportType, onUploaded }) {
@@ -98,7 +98,7 @@ export default function StudentReports() {
         </td>
         <td><span className="type-chip">{label.replace(' Placement Report', '')}</span></td>
         <td style={{ fontSize: '0.875rem', color: 'var(--muted)' }}>
-          {report ? fmtDate(report.submittedAt) : 'Not yet submitted'}
+          {report ? fmtDate(report.createdAt) : 'Not yet submitted'}
         </td>
         <td><span className={`badge ${badgeCls}`}>{badgeLabel}</span></td>
         <td>

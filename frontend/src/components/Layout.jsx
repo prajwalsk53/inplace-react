@@ -18,7 +18,7 @@ const pageTitles = {
   '/tutor/providers': ['Provider Directory', 'Manage placement companies and providers'],
   '/tutor/provider-meetings': ['Provider Meetings', 'Schedule and manage meetings with placement providers'],
   '/tutor/requests': ['Authorisation Requests', 'Review and action student placement requests'],
-  '/tutor/reports': ['Reflections & Reports', 'Review student submissions'],
+  '/tutor/reports': ['Student Reports', 'Review and approve placement reports'],
   '/tutor/announcements': ['Announcements', 'Post placement updates'],
   '/tutor/map-view': ['Map View', 'Placements by location'],
   '/tutor/settings': ['Settings', 'Your preferences'],

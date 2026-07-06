@@ -62,8 +62,8 @@ model User {
   placementsAsTutor        Placement[]               @relation("TutorPlacements")
   visitsConducted          Visit[]                   @relation("TutorVisits")
   reflections               Reflection[]
-  reports                   Report[]
   documents                 Document[]
+  documentsReviewed          Document[]               @relation("DocumentReviewedBy")
   changeRequestsMade         PlacementChangeRequest[] @relation("RequestedBy")
   changeRequestsReviewed     PlacementChangeRequest[] @relation("ReviewedBy")
   sentMessages               Message[]                @relation("SentMessages")
@@ -132,7 +132,6 @@ model Placement {
   changeRequests PlacementChangeRequest[]
   documents      Document[]
   reflections    Reflection[]
-  reports        Report[]
   visits         Visit[]
   providerTokens ProviderToken[]
   evaluations    ProviderEvaluation[]
@@ -172,17 +171,22 @@ model PlacementChangeRequest {
 }
 
 model Document {
-  id           Int        @id @default(autoincrement())
-  placementId  Int?
-  placement    Placement? @relation(fields: [placementId], references: [id])
-  uploadedById Int
-  uploadedBy   User       @relation(fields: [uploadedById], references: [id])
-  fileName     String
-  filePath     String
-  fileType     String?
-  fileSize     Int?
-  category     String?
-  createdAt    DateTime   @default(now())
+  id               Int        @id @default(autoincrement())
+  placementId      Int?
+  placement        Placement? @relation(fields: [placementId], references: [id])
+  uploadedById     Int
+  uploadedBy       User       @relation(fields: [uploadedById], references: [id])
+  fileName         String
+  filePath         String
+  fileType         String?
+  fileSize         Int?
+  category         String?
+  status           String     @default("pending")
+  reviewerFeedback String?
+  reviewedAt       DateTime?
+  reviewedById     Int?
+  reviewedBy       User?      @relation("DocumentReviewedBy", fields: [reviewedById], references: [id])
+  createdAt        DateTime   @default(now())
 }
 
 model Reflection {
@@ -198,23 +202,6 @@ model Reflection {
   tutorFeedback String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
-}
-
-model Report {
-  id            Int       @id @default(autoincrement())
-  placementId   Int
-  placement     Placement @relation(fields: [placementId], references: [id])
-  studentId     Int
-  student       User      @relation(fields: [studentId], references: [id])
-  title         String
-  reportType    String    @default("other")
-  filePath      String?
-  fileSize      Int?
-  content       String?
-  status        String    @default("pending")
-  submittedAt   DateTime  @default(now())
-  reviewedAt    DateTime?
-  tutorFeedback String?
 }
 
 model Visit {

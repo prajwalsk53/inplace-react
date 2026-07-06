@@ -108,6 +108,13 @@ input, select, textarea { font-family: inherit; }
 .btn-gold { background: var(--gold); color: var(--navy); }
 .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
 .btn-danger { background: var(--danger); color: var(--white); }
+.btn-success { background: var(--success); color: var(--white); }
+.btn-warning { background: var(--warning); color: var(--white); }
+
+.alert { padding: 1rem 1.5rem; border-radius: 12px; font-size: 0.9375rem; }
+.alert-danger { background: #fff5f5; border: 1px solid #feb2b2; color: #c53030; }
+.alert-warning { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e; }
+.alert-success { background: #f0fdf4; border: 1px solid #86efac; color: #15803d; }
 .btn-block { width: 100%; }
 .btn-sm { padding: 7px 14px; font-size: 13px; }
 
