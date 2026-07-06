@@ -28,6 +28,7 @@ import Providers from './pages/tutor/Providers';
 import ProviderMeetings from './pages/tutor/ProviderMeetings';
 import TutorRequests from './pages/tutor/Requests';
 import TutorReports from './pages/tutor/Reports';
+import TutorAtRisk from './pages/tutor/AtRisk';
 import TutorAnnouncements from './pages/tutor/Announcements';
 import MapView from './pages/tutor/MapView';
 import TutorSettings from './pages/tutor/Settings';
@@ -110,6 +111,7 @@ export default function App() {
       <Route path="/tutor/provider-meetings" element={<ProtectedRoute roles={['TUTOR']}><ProviderMeetings /></ProtectedRoute>} />
       <Route path="/tutor/requests" element={<ProtectedRoute roles={['TUTOR']}><TutorRequests /></ProtectedRoute>} />
       <Route path="/tutor/reports" element={<ProtectedRoute roles={['TUTOR']}><TutorReports /></ProtectedRoute>} />
+      <Route path="/tutor/at-risk" element={<ProtectedRoute roles={['TUTOR']}><TutorAtRisk /></ProtectedRoute>} />
       <Route path="/tutor/announcements" element={<ProtectedRoute roles={['TUTOR']}><TutorAnnouncements /></ProtectedRoute>} />
       <Route path="/tutor/map-view" element={<ProtectedRoute roles={['TUTOR']}><MapView /></ProtectedRoute>} />
       <Route path="/tutor/settings" element={<ProtectedRoute roles={['TUTOR']}><TutorSettings /></ProtectedRoute>} />

@@ -19,6 +19,7 @@ const pageTitles = {
   '/tutor/provider-meetings': ['Provider Meetings', 'Schedule and manage meetings with placement providers'],
   '/tutor/requests': ['Authorisation Requests', 'Review and action student placement requests'],
   '/tutor/reports': ['Student Reports', 'Review and approve placement reports'],
+  '/tutor/at-risk': ['At-Risk Students', 'Flag and monitor students needing attention'],
   '/tutor/announcements': ['Announcements', 'Post placement updates'],
   '/tutor/map-view': ['Map View', 'Placements by location'],
   '/tutor/settings': ['Settings', 'Your preferences'],

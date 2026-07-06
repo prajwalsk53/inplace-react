@@ -60,6 +60,7 @@ model User {
 
   placementsAsStudent      Placement[]              @relation("StudentPlacements")
   placementsAsTutor        Placement[]               @relation("TutorPlacements")
+  placementsRiskFlagged     Placement[]              @relation("RiskFlaggedBy")
   visitsConducted          Visit[]                   @relation("TutorVisits")
   reflections               Reflection[]
   documents                 Document[]
@@ -126,6 +127,12 @@ model Placement {
   supervisorPhone String?
   status          PlacementStatus @default(SUBMITTED)
   tutorComments   String?
+  riskFlag        Boolean         @default(false)
+  riskLevel       String?
+  riskNotes       String?
+  riskFlaggedAt   DateTime?
+  riskFlaggedById Int?
+  riskFlaggedBy   User?           @relation("RiskFlaggedBy", fields: [riskFlaggedById], references: [id])
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 

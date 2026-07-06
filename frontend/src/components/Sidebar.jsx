@@ -21,6 +21,7 @@ const NAV = {
     ['/tutor/provider-meetings', '🤝', 'Provider Meetings'],
     ['/tutor/requests', '📥', 'Authorisation Requests'],
     ['/tutor/reports', '📄', 'Reports'],
+    ['/tutor/at-risk', '⚠️', 'At-Risk Students'],
     ['/tutor/announcements', '📢', 'Announcements'],
     ['/tutor/map-view', '🗺️', 'Map View'],
     ['/messages', '💬', 'Messages'],

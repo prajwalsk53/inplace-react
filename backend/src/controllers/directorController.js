@@ -47,7 +47,7 @@ exports.getPlacement = async (req, res) => {
   try {
     const placement = await prisma.placement.findUnique({
       where: { id: Number(req.params.id) },
-      include: { student: true, tutor: true, company: true, visits: true, reflections: true, reports: true, changeRequests: true },
+      include: { student: true, tutor: true, company: true, visits: true, reflections: true, documents: true, changeRequests: true },
     });
     if (!placement) return res.status(404).json({ error: 'Placement not found' });
     res.json(placement);

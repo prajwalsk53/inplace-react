@@ -4,23 +4,12 @@ const { mailVisitScheduled, mailProviderMeetingScheduled } = require('../utils/m
 const { logAction } = require('../utils/auditLog');
 const { buildVisitIcs, buildMeetingIcs } = require('../utils/calendarInvite');
 
-const AT_RISK_VISIT_DAYS = 60;
-
 const placementListInclude = {
   student: { select: { id: true, fullName: true, email: true, avatarInitials: true } },
   company: true,
 };
 
-async function atRiskPlacementIds(tutorId) {
-  const cutoff = new Date(Date.now() - AT_RISK_VISIT_DAYS * 24 * 60 * 60 * 1000);
-  const placements = await prisma.placement.findMany({
-    where: { tutorId, status: 'ACTIVE' },
-    include: { visits: { where: { status: 'completed' }, orderBy: { scheduledAt: 'desc' }, take: 1 } },
-  });
-  return placements
-    .filter((p) => p.visits.length === 0 || p.visits[0].scheduledAt < cutoff)
-    .map((p) => p.id);
-}
+const AT_RISK_STATUSES = ['APPROVED', 'ACTIVE', 'AWAITING_TUTOR', 'AWAITING_PROVIDER'];
 
 exports.getDashboard = async (req, res) => {
   try {
@@ -158,9 +147,75 @@ exports.exportAllPlacementsCsv = async (req, res) => {
 
 exports.getAtRiskPlacements = async (req, res) => {
   try {
-    const ids = await atRiskPlacementIds(req.user.id);
-    const placements = await prisma.placement.findMany({ where: { id: { in: ids } }, include: placementListInclude });
-    res.json(placements);
+    const placements = await prisma.placement.findMany({
+      where: { status: { in: AT_RISK_STATUSES } },
+      include: {
+        student: { select: { fullName: true, email: true, avatarInitials: true } },
+        company: { select: { name: true, city: true } },
+        riskFlaggedBy: { select: { fullName: true } },
+        documents: { where: { category: { in: REPORT_CATEGORIES } }, select: { id: true } },
+        visits: { where: { status: 'completed' }, orderBy: { scheduledAt: 'desc' }, take: 1, select: { scheduledAt: true } },
+      },
+      orderBy: [{ riskFlag: 'desc' }, { student: { fullName: 'asc' } }],
+    });
+
+    const shaped = placements.map((p) => ({
+      id: p.id, status: p.status, startDate: p.startDate, endDate: p.endDate, roleTitle: p.roleTitle,
+      riskFlag: p.riskFlag, riskLevel: p.riskLevel, riskNotes: p.riskNotes, riskFlaggedAt: p.riskFlaggedAt,
+      flaggedByName: p.riskFlaggedBy?.fullName || null,
+      student: p.student, company: p.company,
+      reportCount: p.documents.length,
+      lastVisit: p.visits[0]?.scheduledAt || null,
+    }));
+
+    const riskOrder = { high: 0, medium: 1, low: 2 };
+    shaped.sort((a, b) => {
+      if (a.riskFlag !== b.riskFlag) return a.riskFlag ? -1 : 1;
+      if (a.riskFlag && b.riskFlag) return (riskOrder[a.riskLevel] ?? 3) - (riskOrder[b.riskLevel] ?? 3);
+      return a.student.fullName.localeCompare(b.student.fullName);
+    });
+
+    res.json(shaped);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.respondPlacementRisk = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { action, riskLevel, riskNotes } = req.body;
+    const level = ['low', 'medium', 'high'].includes(riskLevel) ? riskLevel : 'medium';
+
+    if (action === 'flag') {
+      const placement = await prisma.placement.update({
+        where: { id },
+        data: { riskFlag: true, riskLevel: level, riskNotes: riskNotes || null, riskFlaggedAt: new Date(), riskFlaggedById: req.user.id },
+      });
+      await prisma.message.create({
+        data: {
+          senderId: req.user.id, receiverId: placement.studentId, isRead: false,
+          body: `Your tutor has flagged your placement as requiring attention (${level.toUpperCase()} priority). Please check in with your tutor.${riskNotes ? ` Note: ${riskNotes}` : ''}`,
+        },
+      });
+      res.json({ message: 'Student flagged as at-risk. They have been notified via message.' });
+    } else if (action === 'update') {
+      const existing = await prisma.placement.findFirst({ where: { id, riskFlag: true } });
+      if (!existing) return res.status(404).json({ error: 'Placement is not currently flagged' });
+      await prisma.placement.update({
+        where: { id },
+        data: { riskLevel: level, riskNotes: riskNotes || null, riskFlaggedById: req.user.id, riskFlaggedAt: new Date() },
+      });
+      res.json({ message: 'Risk flag updated.' });
+    } else if (action === 'unflag') {
+      await prisma.placement.update({
+        where: { id },
+        data: { riskFlag: false, riskLevel: null, riskNotes: null, riskFlaggedAt: null, riskFlaggedById: null },
+      });
+      res.json({ message: 'Flag removed. Student is no longer marked at-risk.' });
+    } else {
+      res.status(400).json({ error: 'Invalid action' });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -170,7 +225,7 @@ exports.getPlacement = async (req, res) => {
   try {
     const placement = await prisma.placement.findFirst({
       where: { id: Number(req.params.id) },
-      include: { ...placementListInclude, visits: true, reflections: true, reports: true, documents: true, changeRequests: true },
+      include: { ...placementListInclude, visits: true, reflections: true, documents: true, changeRequests: true },
     });
     if (!placement) return res.status(404).json({ error: 'Placement not found' });
     res.json(placement);
