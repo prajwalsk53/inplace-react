@@ -61,6 +61,9 @@ model User {
   placementsAsStudent      Placement[]              @relation("StudentPlacements")
   placementsAsTutor        Placement[]               @relation("TutorPlacements")
   placementsRiskFlagged     Placement[]              @relation("RiskFlaggedBy")
+  placementsProviderApproved Placement[]             @relation("ProviderApprovedBy")
+  placementNotificationsRaised PlacementNotification[]
+  opportunitiesPosted        PlacementOpportunity[]
   visitsConducted          Visit[]                   @relation("TutorVisits")
   reflections               Reflection[]
   documents                 Document[]
@@ -105,6 +108,7 @@ model Company {
   meetings      ProviderMeeting[]
   evaluations   ProviderEvaluation[]
   issues        ProviderIssue[]
+  notifications PlacementNotification[]
 }
 
 model Placement {
@@ -132,6 +136,14 @@ model Placement {
   riskFlaggedAt   DateTime?
   riskFlaggedById Int?
   riskFlaggedBy   User?           @relation("RiskFlaggedBy", fields: [riskFlaggedById], references: [id])
+  providerApprovedAt      DateTime?
+  providerApprovedById    Int?
+  providerApprovedBy      User?     @relation("ProviderApprovedBy", fields: [providerApprovedById], references: [id])
+  providerFeedback        String?
+  providerFeedbackAt      DateTime?
+  providerRejectionReason String?
+  providerRejectedAt      DateTime?
+  terminatedReason        String?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
@@ -142,20 +154,30 @@ model Placement {
   providerTokens ProviderToken[]
   evaluations    ProviderEvaluation[]
   issues         ProviderIssue[]
+  notifications  PlacementNotification[]
 
   @@index([status])
 }
 
 model PlacementOpportunity {
-  id          Int      @id @default(autoincrement())
-  companyId   Int
-  company     Company  @relation(fields: [companyId], references: [id])
-  title       String
-  description String?
-  location    String?
-  positions   Int      @default(1)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  id              Int       @id @default(autoincrement())
+  companyId       Int
+  company         Company   @relation(fields: [companyId], references: [id])
+  postedById      Int?
+  postedBy        User?     @relation(fields: [postedById], references: [id])
+  title           String
+  description     String?
+  requirements    String?
+  salaryRange     String?
+  startDateEst    DateTime?
+  durationMonths  Int?
+  skillsRequired  String?
+  deadline        DateTime?
+  location        String?
+  positions       Int       @default(1)
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model PlacementChangeRequest {
@@ -224,6 +246,8 @@ model Visit {
   status        String    @default("scheduled")
   notes         String?
   outcome       String?
+  rescheduleProposedAt DateTime?
+  rescheduleNotes      String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -248,16 +272,30 @@ model ProviderMeeting {
 }
 
 model ProviderEvaluation {
-  id            Int       @id @default(autoincrement())
-  placementId   Int
-  placement     Placement @relation(fields: [placementId], references: [id])
-  companyId     Int
-  company       Company   @relation(fields: [companyId], references: [id])
-  evaluatedById Int
-  evaluatedBy   User      @relation("EvaluatedBy", fields: [evaluatedById], references: [id])
-  rating        Int
-  comments      String?
-  createdAt     DateTime  @default(now())
+  id                    Int       @id @default(autoincrement())
+  placementId           Int
+  placement             Placement @relation(fields: [placementId], references: [id])
+  companyId             Int
+  company               Company   @relation(fields: [companyId], references: [id])
+  evaluatedById         Int
+  evaluatedBy           User      @relation("EvaluatedBy", fields: [evaluatedById], references: [id])
+  evalPeriod            String    @default("ad_hoc")
+  attendance            Int?
+  punctuality           Int?
+  professionalism       Int?
+  technicalSkills       Int?
+  communication         Int?
+  initiative            Int?
+  rating                Int
+  strengths             String?
+  areasForImprovement   String?
+  additionalComments    String?
+  recommendFuture       Boolean?
+  comments              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([placementId, evalPeriod])
 }
 
 model ProviderIssue {
@@ -271,10 +309,28 @@ model ProviderIssue {
   title           String
   description     String
   severity        String    @default("medium")
+  desiredOutcome  String?
   status          String    @default("open")
   resolutionNotes String?
+  resolvedAt      DateTime?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+}
+
+model PlacementNotification {
+  id               Int       @id @default(autoincrement())
+  placementId      Int
+  placement        Placement @relation(fields: [placementId], references: [id])
+  companyId        Int
+  company          Company   @relation(fields: [companyId], references: [id])
+  raisedById       Int
+  raisedBy         User      @relation(fields: [raisedById], references: [id])
+  notificationType String
+  effectiveDate    DateTime?
+  reason           String
+  details          String?
+  status           String    @default("pending")
+  createdAt        DateTime  @default(now())
 }
 
 model ProviderToken {

@@ -34,13 +34,15 @@ import MapView from './pages/tutor/MapView';
 import TutorSettings from './pages/tutor/Settings';
 
 import ProviderDashboard from './pages/provider/Dashboard';
-import ProviderConfirmList from './pages/provider/Confirm';
 import ProviderStudents from './pages/provider/Students';
 import ProviderVisits from './pages/provider/Visits';
+import ProviderViewVisit from './pages/provider/ViewVisit';
 import ProviderRequests from './pages/provider/Requests';
+import ProviderViewPlacement from './pages/provider/ViewPlacement';
 import ProviderIssues from './pages/provider/Issues';
 import ProviderEvaluate from './pages/provider/Evaluate';
 import ProviderTerminate from './pages/provider/Terminate';
+import ProviderOpportunities from './pages/provider/Opportunities';
 import ProviderSettings from './pages/provider/Settings';
 
 import DirectorDashboard from './pages/director/Dashboard';
@@ -118,13 +120,15 @@ export default function App() {
 
       {/* Provider */}
       <Route path="/provider/dashboard" element={<ProtectedRoute roles={['PROVIDER']}><ProviderDashboard /></ProtectedRoute>} />
-      <Route path="/provider/confirm" element={<ProtectedRoute roles={['PROVIDER']}><ProviderConfirmList /></ProtectedRoute>} />
       <Route path="/provider/students" element={<ProtectedRoute roles={['PROVIDER']}><ProviderStudents /></ProtectedRoute>} />
       <Route path="/provider/visits" element={<ProtectedRoute roles={['PROVIDER']}><ProviderVisits /></ProtectedRoute>} />
+      <Route path="/provider/view-visit/:id" element={<ProtectedRoute roles={['PROVIDER']}><ProviderViewVisit /></ProtectedRoute>} />
       <Route path="/provider/requests" element={<ProtectedRoute roles={['PROVIDER']}><ProviderRequests /></ProtectedRoute>} />
+      <Route path="/provider/view-placement/:id" element={<ProtectedRoute roles={['PROVIDER']}><ProviderViewPlacement /></ProtectedRoute>} />
       <Route path="/provider/issues" element={<ProtectedRoute roles={['PROVIDER']}><ProviderIssues /></ProtectedRoute>} />
       <Route path="/provider/evaluate" element={<ProtectedRoute roles={['PROVIDER']}><ProviderEvaluate /></ProtectedRoute>} />
       <Route path="/provider/terminate" element={<ProtectedRoute roles={['PROVIDER']}><ProviderTerminate /></ProtectedRoute>} />
+      <Route path="/provider/opportunities" element={<ProtectedRoute roles={['PROVIDER']}><ProviderOpportunities /></ProtectedRoute>} />
       <Route path="/provider/settings" element={<ProtectedRoute roles={['PROVIDER']}><ProviderSettings /></ProtectedRoute>} />
 
       {/* Director */}

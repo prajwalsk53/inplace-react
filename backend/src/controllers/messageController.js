@@ -29,10 +29,13 @@ exports.getContacts = async (req, res) => {
       });
       others.forEach((u) => attach(u, null, null));
     } else if (user.role === 'PROVIDER') {
-      const placements = await prisma.placement.findMany({ where: { companyId: user.companyId }, include: { student: true, tutor: true } });
+      const placements = await prisma.placement.findMany({
+        where: { companyId: user.companyId, status: { in: ['AWAITING_PROVIDER', 'AWAITING_TUTOR', 'APPROVED', 'ACTIVE'] } },
+        include: { student: true, tutor: true },
+      });
       for (const p of placements) {
         attach(p.student, p.roleTitle, null);
-        attach(p.tutor, p.roleTitle, null);
+        if (p.tutorId && ['AWAITING_TUTOR', 'APPROVED', 'ACTIVE'].includes(p.status)) attach(p.tutor, p.roleTitle, null);
       }
     } else {
       const others = await prisma.user.findMany({ where: { approvalStatus: 'APPROVED', id: { not: user.id } }, take: 50 });
