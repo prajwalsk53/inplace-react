@@ -12,6 +12,9 @@ router.get('/placement', studentController.getMyPlacement);
 router.get('/change-requests', studentController.getChangeRequests);
 router.post('/change-requests', studentController.submitChangeRequest);
 
+router.get('/placement-request', studentController.getPlacementRequestContext);
+router.post('/placement-request', upload.array('documents', 10), studentController.submitPlacementRequest);
+
 router.get('/visits', studentController.getVisits);
 
 router.get('/reflections', studentController.getReflections);

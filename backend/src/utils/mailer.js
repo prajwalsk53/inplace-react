@@ -111,8 +111,21 @@ function mailVisitScheduled(email, name, scheduledAt, visitType) {
   return sendEmail(email, name, 'InPlace — Visit Scheduled', mailTemplate('Visit Scheduled', body, 'View Details', `${APP_URL}/visits`));
 }
 
+function mailPlacementRequestSubmitted(email, name, companyName, roleTitle, startDate, endDate) {
+  const body = p(`Your placement request has been successfully submitted, <strong>${name}</strong>. The placement provider has been notified and will review your request shortly.`)
+    + `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E2E8F0;border-radius:10px;overflow:hidden;margin:16px 0;">
+        <tr><td style="padding:10px 16px;background:#F8FAFF;font-weight:600;width:40%;">Company</td><td style="padding:10px 16px;">${companyName}</td></tr>
+        <tr><td style="padding:10px 16px;font-weight:600;">Role</td><td style="padding:10px 16px;">${roleTitle}</td></tr>
+        <tr><td style="padding:10px 16px;background:#F8FAFF;font-weight:600;">Start Date</td><td style="padding:10px 16px;">${startDate}</td></tr>
+        <tr><td style="padding:10px 16px;font-weight:600;">End Date</td><td style="padding:10px 16px;">${endDate}</td></tr>
+      </table>`
+    + p('You will receive another email once the provider has reviewed your request. You can also track the status of your placement in your dashboard.');
+  return sendEmail(email, name, `InPlace — Your Placement Request at ${companyName} Has Been Submitted`, mailTemplate('Placement Request Submitted', body, 'View My Dashboard', `${APP_URL}/student/dashboard`));
+}
+
 module.exports = {
   sendEmail, mailTemplate, p,
   mailWelcome, mailAccountApproved, mailAccountRejected,
   mailOtp, mailPasswordReset, mailProviderConfirm, mailNewMessage, mailVisitScheduled,
+  mailPlacementRequestSubmitted,
 };

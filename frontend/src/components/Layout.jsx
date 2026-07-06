@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 const pageTitles = {
   '/student/dashboard': ['Dashboard', 'Welcome back'],
   '/student/my-placement': ['My Placement', 'Your current placement details'],
-  '/student/submit-request': ['Submit Request', 'Raise a change request with your tutor'],
+  '/student/submit-request': ['Submit Request', 'New Placement Authorisation Request'],
   '/student/reports': ['Reports', 'Submit your interim and final placement reports'],
   '/student/visits': ['Visits', 'Your scheduled tutor visits'],
   '/student/announcements': ['Announcements', 'Messages from your placement team'],

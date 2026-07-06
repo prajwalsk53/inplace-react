@@ -23,6 +23,7 @@ enum ApprovalStatus {
 }
 
 enum PlacementStatus {
+  DRAFT
   SUBMITTED
   AWAITING_PROVIDER
   AWAITING_TUTOR

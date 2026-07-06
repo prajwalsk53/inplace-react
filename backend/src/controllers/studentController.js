@@ -9,7 +9,7 @@ const placementInclude = {
 
 async function getCurrentPlacement(studentId) {
   return prisma.placement.findFirst({
-    where: { studentId },
+    where: { studentId, status: { in: ['APPROVED', 'ACTIVE'] } },
     include: placementInclude,
     orderBy: { createdAt: 'desc' },
   });
@@ -28,7 +28,11 @@ exports.getDashboard = async (req, res) => {
       include: placementInclude,
       orderBy: { createdAt: 'desc' },
     });
-    const latestPlacement = activePlacement || (await getCurrentPlacement(studentId));
+    const latestPlacement = activePlacement || (await prisma.placement.findFirst({
+      where: { studentId },
+      include: placementInclude,
+      orderBy: { createdAt: 'desc' },
+    }));
 
     const [reportCount, nextVisit, unreadMessages, rawAnnouncements] = await Promise.all([
       prisma.report.count({ where: { studentId } }),
@@ -130,6 +134,163 @@ exports.submitChangeRequest = async (req, res) => {
     }
     await logAction(req.user.id, 'submit_change_request', 'placement_change_requests', request.id);
     res.status(201).json(request);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.getPlacementRequestContext = async (req, res) => {
+  try {
+    const studentId = req.user.id;
+    const existingPlacement = await prisma.placement.findFirst({
+      where: { studentId, status: { notIn: ['REJECTED', 'TERMINATED'] } },
+      select: { id: true, status: true },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    let draft = null;
+    const editId = Number(req.query.edit);
+    if (editId) {
+      const placement = await prisma.placement.findFirst({
+        where: { id: editId, studentId, status: 'DRAFT' },
+        include: { company: true },
+      });
+      if (placement) {
+        draft = {
+          id: placement.id,
+          companyName: placement.company.name,
+          companyAddress: placement.company.address,
+          sector: placement.company.sector,
+          companyLat: placement.company.latitude,
+          companyLng: placement.company.longitude,
+          roleTitle: placement.roleTitle,
+          jobDescription: placement.jobDescription,
+          startDate: placement.startDate ? placement.startDate.toISOString().slice(0, 10) : '',
+          endDate: placement.endDate ? placement.endDate.toISOString().slice(0, 10) : '',
+          salary: placement.salary ? String(placement.salary) : '',
+          workingPattern: placement.workingPattern,
+          supervisorName: placement.supervisorName,
+          supervisorEmail: placement.supervisorEmail,
+          supervisorPhone: placement.supervisorPhone,
+        };
+      }
+    }
+
+    res.json({ existingPlacement, draft });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+function companyNameInEmail(companyName, email) {
+  const words = companyName.toLowerCase().split(/[\s\-&.,/()]+/).filter((w) => w.length > 2);
+  const emailLower = email.toLowerCase();
+  return words.some((w) => emailLower.includes(w));
+}
+
+exports.submitPlacementRequest = async (req, res) => {
+  try {
+    const studentId = req.user.id;
+    const {
+      companyName, companyAddress, sector, companyLat, companyLng,
+      roleTitle, jobDescription, startDate, endDate, salary, workingPattern,
+      supervisorName, supervisorEmail, supervisorPhone,
+      action, editPlacementId,
+    } = req.body;
+
+    const isDraft = action === 'draft';
+
+    if (!isDraft && supervisorEmail && companyName && !companyNameInEmail(companyName, supervisorEmail)) {
+      return res.status(400).json({ error: `The supervisor email must contain the company name somewhere in the address (e.g., supervisor@${companyName.replace(/\s+/g, '').toLowerCase()}.com). The email domain should be from the company you are placed at: ${companyName}.` });
+    }
+
+    const lat = companyLat && !Number.isNaN(Number(companyLat)) ? Number(companyLat) : null;
+    const lng = companyLng && !Number.isNaN(Number(companyLng)) ? Number(companyLng) : null;
+
+    let company = await prisma.company.findFirst({ where: { name: { equals: companyName, mode: 'insensitive' } } });
+    if (company) {
+      company = await prisma.company.update({
+        where: { id: company.id },
+        data: {
+          address: companyAddress, sector, contactName: supervisorName, contactEmail: supervisorEmail, contactPhone: supervisorPhone,
+          latitude: lat !== null ? lat : undefined, longitude: lng !== null ? lng : undefined,
+        },
+      });
+    } else {
+      company = await prisma.company.create({
+        data: { name: companyName, address: companyAddress, sector, contactName: supervisorName, contactEmail: supervisorEmail, contactPhone: supervisorPhone, latitude: lat, longitude: lng },
+      });
+    }
+
+    const status = isDraft ? 'DRAFT' : 'AWAITING_PROVIDER';
+    const placementData = {
+      companyId: company.id,
+      roleTitle: roleTitle || '',
+      jobDescription: jobDescription || '',
+      startDate: startDate ? new Date(startDate) : null,
+      endDate: endDate ? new Date(endDate) : null,
+      salary: salary ? salary.replace(/[^0-9.]/g, '') || null : null,
+      workingPattern: workingPattern || null,
+      supervisorName: supervisorName || null,
+      supervisorEmail: supervisorEmail || null,
+      supervisorPhone: supervisorPhone || null,
+      status,
+    };
+
+    let placement;
+    const existingDraftId = Number(editPlacementId);
+    if (existingDraftId) {
+      const existing = await prisma.placement.findFirst({ where: { id: existingDraftId, studentId, status: 'DRAFT' } });
+      if (!existing) return res.status(404).json({ error: 'Draft not found' });
+      placement = await prisma.placement.update({ where: { id: existingDraftId }, data: placementData, include: { student: true, company: true } });
+    } else {
+      placement = await prisma.placement.create({ data: { ...placementData, studentId }, include: { student: true, company: true } });
+    }
+
+    if (req.files?.length) {
+      await prisma.document.createMany({
+        data: req.files.map((f) => ({
+          placementId: placement.id,
+          uploadedById: studentId,
+          fileName: f.originalname,
+          filePath: fileUrl(f.filename),
+          fileType: f.mimetype,
+          fileSize: f.size,
+          category: 'offer_letter',
+        })),
+      });
+    }
+
+    await logAction(studentId, isDraft ? 'saved_draft' : 'submitted_placement_request', 'placements', placement.id);
+
+    let notifiedEmail = null;
+    if (!isDraft) {
+      const providerUser = await prisma.user.findFirst({ where: { role: 'PROVIDER', companyId: company.id, isActive: true } });
+      notifiedEmail = providerUser?.email || placement.supervisorEmail;
+
+      if (placement.supervisorEmail || providerUser) {
+        const { issueProviderToken } = require('../utils/providerToken');
+        await issueProviderToken({
+          ...placement,
+          supervisorEmail: providerUser?.email || placement.supervisorEmail,
+          supervisorName: providerUser?.fullName || placement.supervisorName,
+        }, 'confirm_placement');
+      }
+
+      const { mailPlacementRequestSubmitted } = require('../utils/mailer');
+      await mailPlacementRequestSubmitted(
+        req.user.email, req.user.fullName, company.name, placement.roleTitle,
+        placement.startDate ? placement.startDate.toLocaleDateString('en-GB') : '',
+        placement.endDate ? placement.endDate.toLocaleDateString('en-GB') : '',
+      );
+    }
+
+    res.status(existingDraftId ? 200 : 201).json({
+      placementId: placement.id,
+      message: isDraft
+        ? (existingDraftId ? 'Draft updated successfully!' : 'Draft saved successfully! You can come back and submit it later.')
+        : `Your placement request has been submitted! A notification was sent to: ${notifiedEmail || 'the provider'}.`,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
