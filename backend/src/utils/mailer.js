@@ -16,13 +16,13 @@ const transporter = MAIL_HOST
     })
   : null;
 
-async function sendEmail(toEmail, toName, subject, html) {
+async function sendEmail(toEmail, toName, subject, html, attachments) {
   if (!transporter) {
     console.log(`[mailer] SMTP not configured — skipping email to ${toEmail}: ${subject}`);
     return false;
   }
   try {
-    await transporter.sendMail({ from: MAIL_FROM, to: `${toName} <${toEmail}>`, subject, html });
+    await transporter.sendMail({ from: MAIL_FROM, to: `${toName} <${toEmail}>`, subject, html, attachments });
     return true;
   } catch (err) {
     console.error('InPlace Mail: send failed —', err.message);
@@ -106,9 +106,39 @@ function mailNewMessage(email, name, senderName, preview) {
   return sendEmail(email, name, `New Message from ${senderName} — InPlace`, mailTemplate('New Message', body, 'View Message', `${APP_URL}/messages`));
 }
 
-function mailVisitScheduled(email, name, scheduledAt, visitType) {
-  const body = p(`A placement visit has been scheduled for <strong>${new Date(scheduledAt).toLocaleString('en-GB')}</strong> (${visitType.replace('_', ' ')}).`);
-  return sendEmail(email, name, 'InPlace — Visit Scheduled', mailTemplate('Visit Scheduled', body, 'View Details', `${APP_URL}/visits`));
+function mailVisitScheduled(visit, icsContent) {
+  const { organizer, attendee } = visit;
+  const start = new Date(visit.scheduledAt);
+  const end = new Date(start.getTime() + (visit.durationHours || 2) * 60 * 60 * 1000);
+  const fmtDate = start.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const fmtStart = start.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true });
+  const fmtEnd = end.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true });
+  const location = visit.visitType === 'virtual' && visit.meetingLink ? 'Virtual Meeting' : [visit.companyName, visit.location].filter(Boolean).join(', ');
+
+  let body = p(`<strong>${organizer.name}</strong> has scheduled a placement visit.`)
+    + `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E2E8F0;border-radius:10px;overflow:hidden;margin:16px 0;">
+        <tr><td style="padding:10px 16px;background:#F8FAFF;font-weight:600;width:40%;">Date</td><td style="padding:10px 16px;">${fmtDate}</td></tr>
+        <tr><td style="padding:10px 16px;font-weight:600;">Time</td><td style="padding:10px 16px;">${fmtStart} - ${fmtEnd}</td></tr>
+        <tr><td style="padding:10px 16px;background:#F8FAFF;font-weight:600;">Location</td><td style="padding:10px 16px;">${location}</td></tr>
+        <tr><td style="padding:10px 16px;font-weight:600;">Company</td><td style="padding:10px 16px;">${visit.companyName}</td></tr>
+        <tr><td style="padding:10px 16px;background:#F8FAFF;font-weight:600;">Student</td><td style="padding:10px 16px;">${visit.studentName}</td></tr>
+      </table>`;
+
+  if (visit.visitType === 'virtual' && visit.meetingLink) {
+    body += `<div style="background:#e0f2fe;padding:15px;border-radius:8px;margin:20px 0;"><p style="margin:0;font-size:14px;"><strong>🖥️ Virtual Meeting</strong></p><p style="margin:10px 0 0;"><a href="${visit.meetingLink}" style="color:#0369a1;word-break:break-all;">${visit.meetingLink}</a></p></div>`;
+  }
+  if (visit.notes) {
+    body += p(`<strong>Agenda:</strong><br>${visit.notes.replace(/\n/g, '<br>')}`);
+  }
+  body += p('This calendar invite has been attached below. You can Accept or Decline from your calendar.');
+
+  const html = mailTemplate('Placement Visit Scheduled', body);
+  const attachments = [{ filename: 'invite.ics', content: icsContent, contentType: 'text/calendar; method=REQUEST; charset=UTF-8' }];
+
+  return Promise.all([
+    sendEmail(attendee.email, attendee.name, `📅 Placement Visit: ${visit.summary}`, html, attachments),
+    sendEmail(organizer.email, organizer.name, `📅 Placement Visit: ${visit.summary}`, html, attachments),
+  ]);
 }
 
 function mailPlacementRequestSubmitted(email, name, companyName, roleTitle, startDate, endDate) {

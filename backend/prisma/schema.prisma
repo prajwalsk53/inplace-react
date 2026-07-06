@@ -211,18 +211,21 @@ model Report {
 }
 
 model Visit {
-  id          Int       @id @default(autoincrement())
-  placementId Int
-  placement   Placement @relation(fields: [placementId], references: [id])
-  tutorId     Int
-  tutor       User      @relation("TutorVisits", fields: [tutorId], references: [id])
-  scheduledAt DateTime
-  visitType   String    @default("in_person")
-  status      String    @default("scheduled")
-  notes       String?
-  outcome     String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id            Int       @id @default(autoincrement())
+  placementId   Int
+  placement     Placement @relation(fields: [placementId], references: [id])
+  tutorId       Int
+  tutor         User      @relation("TutorVisits", fields: [tutorId], references: [id])
+  scheduledAt   DateTime
+  durationHours Float     @default(2)
+  visitType     String    @default("physical")
+  location      String?
+  meetingLink   String?
+  status        String    @default("scheduled")
+  notes         String?
+  outcome       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model ProviderMeeting {

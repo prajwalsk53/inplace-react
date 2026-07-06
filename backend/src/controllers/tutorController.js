@@ -334,12 +334,14 @@ exports.terminatePlacement = async (req, res) => {
   }
 };
 
+const visitInclude = { placement: { include: { student: true, company: true } }, tutor: true };
+
 exports.getVisits = async (req, res) => {
   try {
     const visits = await prisma.visit.findMany({
       where: { tutorId: req.user.id },
-      include: { placement: { include: { student: { select: { fullName: true } }, company: true } } },
-      orderBy: { scheduledAt: 'desc' },
+      include: visitInclude,
+      orderBy: [{ scheduledAt: 'asc' }],
     });
     res.json(visits);
   } catch (err) {
@@ -347,20 +349,125 @@ exports.getVisits = async (req, res) => {
   }
 };
 
+exports.getVisit = async (req, res) => {
+  try {
+    const visit = await prisma.visit.findFirst({ where: { id: Number(req.params.id), tutorId: req.user.id }, include: visitInclude });
+    if (!visit) return res.status(404).json({ error: 'Visit not found' });
+    res.json(visit);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.scheduleVisit = async (req, res) => {
   try {
-    const { placementId, scheduledAt, visitType } = req.body;
-    const placement = await prisma.placement.findFirst({ where: { id: Number(placementId) }, include: { student: true } });
+    const { placementId, visitDate, visitTime, duration, visitType, location, meetingLink, notes } = req.body;
+    const placement = await prisma.placement.findFirst({ where: { id: Number(placementId) }, include: { student: true, company: true } });
     if (!placement) return res.status(404).json({ error: 'Placement not found' });
 
+    const scheduledAt = new Date(`${visitDate}T${visitTime}`);
     const visit = await prisma.visit.create({
-      data: { placementId: placement.id, tutorId: req.user.id, scheduledAt: new Date(scheduledAt), visitType: visitType || 'in_person' },
+      data: {
+        placementId: placement.id, tutorId: req.user.id, scheduledAt,
+        durationHours: duration ? Number(duration) : 2,
+        visitType: visitType || 'physical',
+        location: location || null, meetingLink: meetingLink || null,
+        notes: notes || null,
+        status: 'scheduled',
+      },
+      include: visitInclude,
     });
+
     await prisma.notification.create({
-      data: { userId: placement.studentId, type: 'visit', title: 'Visit scheduled', body: `A tutor visit has been scheduled for ${new Date(scheduledAt).toLocaleDateString('en-GB')}.`, link: '/student/visits' },
+      data: { userId: placement.studentId, type: 'visit', title: 'Visit scheduled', body: `A tutor visit has been scheduled for ${scheduledAt.toLocaleDateString('en-GB')}.`, link: '/student/visits' },
     });
-    await mailVisitScheduled(placement.student.email, placement.student.fullName, scheduledAt, visitType || 'in_person');
-    res.status(201).json(visit);
+
+    const icsContent = buildVisitIcs(visit, { name: req.user.fullName, email: req.user.email }, [{ name: placement.student.fullName, email: placement.student.email }]);
+    let inviteSent = false;
+    try {
+      await mailVisitScheduled({
+        summary: `${placement.roleTitle} - Placement Visit`,
+        scheduledAt, durationHours: visit.durationHours, visitType: visit.visitType, meetingLink, location,
+        companyName: placement.company.name, studentName: placement.student.fullName, notes,
+        organizer: { name: req.user.fullName, email: req.user.email },
+        attendee: { name: placement.student.fullName, email: placement.student.email },
+      }, icsContent);
+      inviteSent = true;
+    } catch (e) { /* email is best-effort */ }
+
+    res.status(201).json({
+      visit,
+      message: inviteSent
+        ? `Visit scheduled successfully! Calendar invites have been sent to ${placement.student.fullName} and added to your calendar.`
+        : 'Visit scheduled successfully!',
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateVisit = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const existing = await prisma.visit.findFirst({ where: { id, tutorId: req.user.id }, include: { placement: true } });
+    if (!existing) return res.status(404).json({ error: 'Visit not found' });
+
+    const { visitDate, visitTime, visitType, location, meetingLink, notes } = req.body;
+    const scheduledAt = new Date(`${visitDate}T${visitTime}`);
+    const visit = await prisma.visit.update({
+      where: { id },
+      data: { scheduledAt, visitType, location: location || null, meetingLink: meetingLink || null, notes: notes || null },
+    });
+
+    await prisma.notification.create({
+      data: {
+        userId: existing.placement.studentId, type: 'visit_updated',
+        title: 'Visit rescheduled',
+        body: `📅 Your visit has been rescheduled to ${scheduledAt.toLocaleDateString('en-GB')} at ${scheduledAt.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true })}.`,
+        link: '/student/visits',
+      },
+    });
+
+    res.json(visit);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.completeVisit = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const existing = await prisma.visit.findFirst({ where: { id, tutorId: req.user.id } });
+    if (!existing) return res.status(404).json({ error: 'Visit not found' });
+    const visit = await prisma.visit.update({ where: { id }, data: { status: 'completed', notes: req.body.notes || null } });
+    res.json(visit);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.cancelVisit = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const existing = await prisma.visit.findFirst({ where: { id, tutorId: req.user.id }, include: { placement: true } });
+    if (!existing) return res.status(404).json({ error: 'Visit not found' });
+
+    const reason = (req.body.reason || '').trim() || 'Cancelled by tutor';
+    const visit = await prisma.visit.update({
+      where: { id },
+      data: { status: 'cancelled', notes: `${existing.notes || ''}\n[CANCELLED] ${reason}`.trim() },
+    });
+
+    await prisma.notification.create({
+      data: {
+        userId: existing.placement.studentId, type: 'visit_cancelled',
+        title: 'Visit cancelled',
+        body: `⚠️ Your visit scheduled for ${existing.scheduledAt.toLocaleDateString('en-GB')} at ${existing.scheduledAt.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true })} has been cancelled by your tutor. Reason: ${reason}`,
+        link: '/student/visits',
+      },
+    });
+
+    res.json(visit);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -371,8 +478,7 @@ exports.saveVisitNotes = async (req, res) => {
     const id = Number(req.params.id);
     const existing = await prisma.visit.findFirst({ where: { id, tutorId: req.user.id } });
     if (!existing) return res.status(404).json({ error: 'Visit not found' });
-    const { notes, outcome, status } = req.body;
-    const visit = await prisma.visit.update({ where: { id }, data: { notes, outcome, status: status || 'completed' } });
+    const visit = await prisma.visit.update({ where: { id }, data: { notes: req.body.notes || null } });
     res.json(visit);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -381,11 +487,11 @@ exports.saveVisitNotes = async (req, res) => {
 
 exports.downloadVisitIcs = async (req, res) => {
   try {
-    const visit = await prisma.visit.findFirst({ where: { id: Number(req.params.id), tutorId: req.user.id } });
+    const visit = await prisma.visit.findFirst({ where: { id: Number(req.params.id), tutorId: req.user.id }, include: visitInclude });
     if (!visit) return res.status(404).json({ error: 'Visit not found' });
     res.setHeader('Content-Type', 'text/calendar');
     res.setHeader('Content-Disposition', `attachment; filename="visit-${visit.id}.ics"`);
-    res.send(buildVisitIcs(visit));
+    res.send(buildVisitIcs(visit, { name: visit.tutor.fullName, email: visit.tutor.email }, [{ name: visit.placement.student.fullName, email: visit.placement.student.email }]));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

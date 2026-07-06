@@ -23,7 +23,11 @@ router.get('/company-names', tutorController.getExistingCompanyNames);
 
 router.get('/visits', tutorController.getVisits);
 router.post('/visits', tutorController.scheduleVisit);
+router.get('/visits/:id', tutorController.getVisit);
+router.put('/visits/:id', tutorController.updateVisit);
 router.put('/visits/:id/notes', tutorController.saveVisitNotes);
+router.post('/visits/:id/complete', tutorController.completeVisit);
+router.post('/visits/:id/cancel', tutorController.cancelVisit);
 router.get('/visits/:id/ics', tutorController.downloadVisitIcs);
 
 router.get('/providers', tutorController.getProviders);

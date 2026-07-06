@@ -455,4 +455,21 @@ tbody tr:hover { background: rgba(232,160,32,0.05); }
   color: var(--white); font-size: 0.75rem; font-weight: 700; flex-shrink: 0;
 }
 .avatar-cell h4 { font-size: 0.9375rem; font-weight: 500; }
+
+/* ---- Visit cards (ported from PHP) ---- */
+.visit-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; }
+.visit-card { background: var(--white); border-radius: var(--radius); border: 1px solid var(--border); padding: 1.5rem; transition: all 0.2s; }
+.visit-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+.visit-date-block { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; }
+.date-box { width: 54px; background: var(--navy); border-radius: 10px; text-align: center; padding: 0.625rem 0.5rem; flex-shrink: 0; }
+.date-box .day { font-size: 1.5rem; font-weight: 700; color: var(--white); line-height: 1; }
+.date-box .month { font-size: 0.6875rem; color: var(--gold); text-transform: uppercase; font-weight: 600; margin-top: 0.2rem; }
+.visit-date-info h4 { font-size: 0.9375rem; font-weight: 600; color: var(--navy); }
+.visit-date-info p { font-size: 0.8125rem; color: var(--muted); }
+.visit-meta { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.25rem; }
+.visit-meta-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.875rem; color: var(--muted); }
+.visit-meta-row strong { color: var(--text); font-weight: 500; }
+.visit-actions { display: flex; gap: 0.5rem; }
+@media (max-width: 1100px) { .visit-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 720px) { .visit-grid { grid-template-columns: 1fr; } }
 .avatar-cell p { font-size: 0.8125rem; color: var(--muted); }

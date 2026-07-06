@@ -23,6 +23,7 @@ import CreatePlacement from './pages/tutor/CreatePlacement';
 import EditPlacement from './pages/tutor/EditPlacement';
 import TutorVisits from './pages/tutor/Visits';
 import ScheduleVisit from './pages/tutor/ScheduleVisit';
+import EditVisit from './pages/tutor/EditVisit';
 import Providers from './pages/tutor/Providers';
 import ProviderMeetings from './pages/tutor/ProviderMeetings';
 import TutorRequests from './pages/tutor/Requests';
@@ -104,6 +105,7 @@ export default function App() {
       <Route path="/tutor/placements/:id/edit" element={<ProtectedRoute roles={['TUTOR']}><EditPlacement /></ProtectedRoute>} />
       <Route path="/tutor/visits" element={<ProtectedRoute roles={['TUTOR']}><TutorVisits /></ProtectedRoute>} />
       <Route path="/tutor/schedule-visit" element={<ProtectedRoute roles={['TUTOR']}><ScheduleVisit /></ProtectedRoute>} />
+      <Route path="/tutor/edit-visit/:id" element={<ProtectedRoute roles={['TUTOR']}><EditVisit /></ProtectedRoute>} />
       <Route path="/tutor/providers" element={<ProtectedRoute roles={['TUTOR']}><Providers /></ProtectedRoute>} />
       <Route path="/tutor/provider-meetings" element={<ProtectedRoute roles={['TUTOR']}><ProviderMeetings /></ProtectedRoute>} />
       <Route path="/tutor/requests" element={<ProtectedRoute roles={['TUTOR']}><TutorRequests /></ProtectedRoute>} />

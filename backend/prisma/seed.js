@@ -118,8 +118,8 @@ async function seed() {
   if ((await prisma.visit.count({ where: { placementId: placement.id } })) === 0) {
     await prisma.visit.createMany({
       data: [
-        { placementId: placement.id, tutorId: tutor.id, scheduledAt: new Date(Date.now() + 7 * 86400000), visitType: 'in_person', status: 'scheduled' },
-        { placementId: placement.id, tutorId: tutor.id, scheduledAt: new Date(Date.now() - 30 * 86400000), visitType: 'virtual', status: 'completed', notes: 'Student settling in well, no concerns raised.', outcome: 'Satisfactory' },
+        { placementId: placement.id, tutorId: tutor.id, scheduledAt: new Date(Date.now() + 7 * 86400000), visitType: 'physical', location: 'Acme Digital Ltd, Leicester', status: 'scheduled' },
+        { placementId: placement.id, tutorId: tutor.id, scheduledAt: new Date(Date.now() - 30 * 86400000), durationHours: 1, visitType: 'virtual', meetingLink: 'https://teams.microsoft.com/l/meetup-join/demo', status: 'completed', notes: 'Student settling in well, no concerns raised.', outcome: 'Satisfactory' },
       ],
     });
   }
