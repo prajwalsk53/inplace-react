@@ -50,11 +50,16 @@ model User {
   approvalStatus   ApprovalStatus @default(PENDING)
   rejectionReason  String?
   avatarInitials   String?
+  studentId        String?
   academicYear     String?
   programmeType    String?
   isActive         Boolean        @default(true)
   companyId        Int?
   company          Company?       @relation(fields: [companyId], references: [id])
+  approvedById     Int?
+  approvedBy       User?          @relation("ApprovedUsers", fields: [approvedById], references: [id])
+  approvedUsers    User[]         @relation("ApprovedUsers")
+  approvedAt       DateTime?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 

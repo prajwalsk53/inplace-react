@@ -52,19 +52,21 @@ import DirectorFeedback from './pages/director/Feedback';
 import DirectorMap from './pages/director/Map';
 import DirectorReports from './pages/director/Reports';
 
+import AdminDashboard from './pages/admin/Dashboard';
 import AdminUsers from './pages/admin/Users';
 import AdminApproveRegistrations from './pages/admin/ApproveRegistrations';
 import AdminPlacements from './pages/admin/Placements';
+import AdminEditPlacement from './pages/admin/EditPlacement';
+import AdminViewPlacement from './pages/admin/ViewPlacement';
 import AdminSettings from './pages/admin/Settings';
 import AdminLogs from './pages/admin/Logs';
-import AdminExport from './pages/admin/Export';
 
 const dashboardRoute = {
   STUDENT: '/student/dashboard',
   TUTOR: '/tutor/dashboard',
   PROVIDER: '/provider/dashboard',
   DIRECTOR: '/director/dashboard',
-  ADMIN: '/admin/users',
+  ADMIN: '/admin/dashboard',
 };
 
 function ProtectedRoute({ children, roles }) {
@@ -140,12 +142,14 @@ export default function App() {
       <Route path="/director/reports" element={<ProtectedRoute roles={['DIRECTOR']}><DirectorReports /></ProtectedRoute>} />
 
       {/* Admin */}
+      <Route path="/admin/dashboard" element={<ProtectedRoute roles={['ADMIN']}><AdminDashboard /></ProtectedRoute>} />
       <Route path="/admin/users" element={<ProtectedRoute roles={['ADMIN']}><AdminUsers /></ProtectedRoute>} />
       <Route path="/admin/approve-registrations" element={<ProtectedRoute roles={['ADMIN']}><AdminApproveRegistrations /></ProtectedRoute>} />
       <Route path="/admin/placements" element={<ProtectedRoute roles={['ADMIN']}><AdminPlacements /></ProtectedRoute>} />
+      <Route path="/admin/placements/:id/edit" element={<ProtectedRoute roles={['ADMIN']}><AdminEditPlacement /></ProtectedRoute>} />
+      <Route path="/admin/placements/:id" element={<ProtectedRoute roles={['ADMIN']}><AdminViewPlacement /></ProtectedRoute>} />
       <Route path="/admin/settings" element={<ProtectedRoute roles={['ADMIN']}><AdminSettings /></ProtectedRoute>} />
       <Route path="/admin/logs" element={<ProtectedRoute roles={['ADMIN']}><AdminLogs /></ProtectedRoute>} />
-      <Route path="/admin/export" element={<ProtectedRoute roles={['ADMIN']}><AdminExport /></ProtectedRoute>} />
 
       <Route path="*" element={<Navigate to={user ? dashboardRoute[user.role] : '/login'} replace />} />
     </Routes>

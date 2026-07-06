@@ -41,12 +41,12 @@ const pageTitles = {
   '/director/map': ['Map', 'Placements by location'],
   '/director/reports': ['Reports', 'Programme analytics'],
 
-  '/admin/users': ['Users', 'Manage all users'],
-  '/admin/approve-registrations': ['Approve Registrations', 'Pending account approvals'],
-  '/admin/placements': ['Placements', 'All placements'],
-  '/admin/settings': ['Settings', 'System configuration'],
-  '/admin/logs': ['Audit Logs', 'System activity'],
-  '/admin/export': ['Export', 'Download placement data'],
+  '/admin/dashboard': ['System Administration', 'Manage users, settings and system health'],
+  '/admin/users': ['User Management', 'Create, edit and manage user accounts'],
+  '/admin/approve-registrations': ['Registration Approvals', 'Review and approve student registrations'],
+  '/admin/placements': ['All Placements', 'Overview of all student placements'],
+  '/admin/settings': ['Settings', 'API & email configuration'],
+  '/admin/logs': ['Audit Logs', 'System activity and audit trail'],
 
   '/messages': ['Messages', 'Your conversations'],
 };

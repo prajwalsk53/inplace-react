@@ -16,7 +16,7 @@ const dashboardRoute = {
   TUTOR: '/tutor/dashboard',
   PROVIDER: '/provider/dashboard',
   DIRECTOR: '/director/dashboard',
-  ADMIN: '/admin/users',
+  ADMIN: '/admin/dashboard',
 };
 
 export default function Login() {

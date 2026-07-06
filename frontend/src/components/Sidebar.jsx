@@ -48,12 +48,11 @@ const NAV = {
     ['/director/reports', '📈', 'Reports'],
   ],
   ADMIN: [
-    ['/admin/users', '👥', 'Users'],
-    ['/admin/approve-registrations', '✅', 'Approve Registrations'],
-    ['/admin/placements', '💼', 'Placements'],
+    ['/admin/dashboard', '🏠', 'Dashboard'],
+    ['/admin/approve-registrations', '📝', 'Registration Approvals'],
+    ['/admin/users', '👥', 'Manage Users'],
+    ['/admin/placements', '🏢', 'All Placements'],
     ['/admin/settings', '⚙️', 'Settings'],
-    ['/admin/logs', '🧾', 'Audit Logs'],
-    ['/admin/export', '📤', 'Export'],
   ],
 };
 
