@@ -22,7 +22,7 @@ const pageTitles = {
   '/tutor/at-risk': ['At-Risk Students', 'Flag and monitor students needing attention'],
   '/tutor/announcements': ['Announcements', 'Post placement updates'],
   '/tutor/map-view': ['Placement Map', 'View all placement locations and plan visits'],
-  '/tutor/settings': ['Settings', 'Your preferences'],
+  '/tutor/settings': ['Cycle Settings', 'Academic year, report deadlines and configuration'],
 
   '/provider/dashboard': ['Dashboard', 'Employer overview'],
   '/provider/confirm': ['Confirm Placements', 'Placements awaiting your confirmation'],
@@ -56,7 +56,7 @@ export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [title, staticSubtitle] = pageTitles[location.pathname] || ['InPlace', ''];
-  const isWelcomeDashboard = location.pathname === '/student/dashboard' || location.pathname === '/tutor/dashboard';
+  const isWelcomeDashboard = location.pathname === '/student/dashboard' || location.pathname === '/tutor/dashboard' || location.pathname === '/messages';
   const subtitle = isWelcomeDashboard ? `Welcome back, ${user?.fullName?.split(' ')[0] || ''}` : staticSubtitle;
 
   const handleLogout = () => {

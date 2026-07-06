@@ -1084,14 +1084,27 @@ exports.getMapPlacements = async (req, res) => {
   }
 };
 
+const CYCLE_DEFAULTS = {
+  cycle_label: '2025/26',
+  cycle_start_date: '',
+  cycle_end_date: '',
+  interim_report_months: '4',
+  final_report_months_before: '1',
+  deadline_reminder_days: '14',
+  max_placement_months: '12',
+  min_placement_months: '6',
+  allowed_sectors: '',
+  placement_notes: '',
+};
+
 exports.getSettings = async (req, res) => {
   try {
-    const settings = await prisma.tutorSetting.upsert({
-      where: { tutorId: req.user.id },
-      update: {},
-      create: { tutorId: req.user.id },
-    });
-    res.json(settings);
+    const { getSetting } = require('../utils/settings');
+    const cfg = {};
+    for (const [key, fallback] of Object.entries(CYCLE_DEFAULTS)) {
+      cfg[key] = await getSetting(key, fallback);
+    }
+    res.json(cfg);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1099,13 +1112,11 @@ exports.getSettings = async (req, res) => {
 
 exports.updateSettings = async (req, res) => {
   try {
-    const { visitReminderDays, emailNotifications } = req.body;
-    const settings = await prisma.tutorSetting.upsert({
-      where: { tutorId: req.user.id },
-      update: { visitReminderDays: visitReminderDays !== undefined ? Number(visitReminderDays) : undefined, emailNotifications },
-      create: { tutorId: req.user.id, visitReminderDays: visitReminderDays ? Number(visitReminderDays) : undefined, emailNotifications },
-    });
-    res.json(settings);
+    const { setSetting } = require('../utils/settings');
+    for (const key of Object.keys(CYCLE_DEFAULTS)) {
+      if (req.body[key] !== undefined) await setSetting(key, String(req.body[key]).trim());
+    }
+    res.json({ message: 'Settings saved successfully.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

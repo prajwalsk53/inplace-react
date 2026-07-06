@@ -13,6 +13,9 @@ const initials = (name) => {
 
 const timeLabel = (d) => new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
+const ROLE_COLORS = { STUDENT: '#0ea5e9', TUTOR: '#8b5cf6', PROVIDER: '#f59e0b', ADMIN: '#ef4444' };
+const roleColor = (role) => ROLE_COLORS[role] || '#6b7280';
+
 export default function Messages() {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -22,6 +25,7 @@ export default function Messages() {
   const [body, setBody] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [search, setSearch] = useState('');
+  const [onlineIds, setOnlineIds] = useState([]);
   const bottomRef = useRef(null);
 
   const activeId = Number(searchParams.get('with')) || null;
@@ -68,7 +72,12 @@ export default function Messages() {
       });
     };
     socket.on('new-message', onNewMessage);
-    return () => socket.off('new-message', onNewMessage);
+    const onOnlineUsers = (ids) => setOnlineIds(ids.map(String));
+    socket.on('online-users', onOnlineUsers);
+    return () => {
+      socket.off('new-message', onNewMessage);
+      socket.off('online-users', onOnlineUsers);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -159,7 +168,7 @@ export default function Messages() {
                 <div>
                   <div style={{ fontWeight: 700 }}>{chatUser.fullName}</div>
                   <div style={{ fontSize: '0.82rem', color: 'var(--muted)' }}>
-                    {chatUser.role ? `${chatUser.role[0]}${chatUser.role.slice(1).toLowerCase()}` : ''} · Online
+                    {chatUser.role ? `${chatUser.role[0]}${chatUser.role.slice(1).toLowerCase()}` : ''} · {onlineIds.includes(String(chatUser.id)) ? 'Online' : 'Offline'}
                   </div>
                 </div>
               </>
@@ -235,7 +244,7 @@ export default function Messages() {
                     className="contact-item"
                     onClick={() => startConversation(c.id)}
                   >
-                    <div className="contact-avatar">{initials(c.fullName)}</div>
+                    <div className="contact-avatar" style={{ background: roleColor(c.role) }}>{initials(c.fullName)}</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 600, color: 'var(--navy)', fontSize: '0.9375rem' }}>
                         {c.fullName}
@@ -245,7 +254,7 @@ export default function Messages() {
                       {c.roleTitles && <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '0.25rem' }}>📍 {c.roleTitles}</div>}
                       {c.companies && <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '0.125rem' }}>🏢 {c.companies}</div>}
                     </div>
-                    <span className="role-pill">{c.role?.[0]}{c.role?.slice(1).toLowerCase()}</span>
+                    <span className="role-pill" style={{ background: `${roleColor(c.role)}20`, color: roleColor(c.role) }}>{c.role?.[0]}{c.role?.slice(1).toLowerCase()}</span>
                   </div>
                 ))
               )}

@@ -75,7 +75,6 @@ model User {
   auditLogs                  AuditLog[]
   otpCodes                   OtpCode[]
   passwordResets             PasswordReset[]
-  tutorSetting               TutorSetting?
   evaluationsGiven           ProviderEvaluation[]      @relation("EvaluatedBy")
   issuesRaised                ProviderIssue[]          @relation("RaisedBy")
   meetingsRequested           ProviderMeeting[]        @relation("MeetingRequestedBy")
@@ -380,10 +379,3 @@ model SystemSetting {
   value String?
 }
 
-model TutorSetting {
-  id                 Int     @id @default(autoincrement())
-  tutorId            Int     @unique
-  tutor              User    @relation(fields: [tutorId], references: [id])
-  visitReminderDays  Int     @default(7)
-  emailNotifications Boolean @default(true)
-}
