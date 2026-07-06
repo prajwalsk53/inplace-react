@@ -21,7 +21,7 @@ const pageTitles = {
   '/tutor/reports': ['Student Reports', 'Review and approve placement reports'],
   '/tutor/at-risk': ['At-Risk Students', 'Flag and monitor students needing attention'],
   '/tutor/announcements': ['Announcements', 'Post placement updates'],
-  '/tutor/map-view': ['Map View', 'Placements by location'],
+  '/tutor/map-view': ['Placement Map', 'View all placement locations and plan visits'],
   '/tutor/settings': ['Settings', 'Your preferences'],
 
   '/provider/dashboard': ['Dashboard', 'Employer overview'],

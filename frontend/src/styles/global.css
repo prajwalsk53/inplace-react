@@ -261,7 +261,7 @@ tbody tr:hover { background: rgba(232,160,32,0.05); }
 
 .modal-backdrop {
   position: fixed; inset: 0; background: rgba(12,27,51,0.55);
-  display: flex; align-items: center; justify-content: center; z-index: 100; padding: 20px;
+  display: flex; align-items: center; justify-content: center; z-index: 2000; padding: 20px;
 }
 .modal { background: var(--white); border-radius: var(--radius); padding: 28px; width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; }
 
@@ -326,6 +326,12 @@ tbody tr:hover { background: rgba(232,160,32,0.05); }
 .tab.active { color: var(--navy); border-bottom-color: var(--gold); }
 
 .map-container { height: 500px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); }
+
+.city-pin { width: 34px; height: 34px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; box-shadow: 0 10px 25px rgba(0,0,0,0.18); border: 2px solid rgba(255,255,255,0.9); font-size: 12px; }
+.pin-navy { background: var(--navy); }
+.pin-gold { background: var(--gold); color: #0b1b34; }
+.pin-red { background: var(--danger); }
+.leaflet-container { border-radius: var(--radius); }
 
 .loading-screen { display: flex; align-items: center; justify-content: center; min-height: 60vh; color: var(--muted); }
 

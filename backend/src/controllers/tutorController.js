@@ -1064,10 +1064,21 @@ exports.togglePinAnnouncement = async (req, res) => {
 exports.getMapPlacements = async (req, res) => {
   try {
     const placements = await prisma.placement.findMany({
-      where: { tutorId: req.user.id, status: { in: ['ACTIVE', 'APPROVED'] } },
-      include: { student: { select: { fullName: true } }, company: true },
+      where: { status: { in: ['APPROVED', 'ACTIVE'] } },
+      include: { student: { select: { fullName: true, avatarInitials: true } }, company: true },
+      orderBy: [{ company: { city: 'asc' } }, { company: { name: 'asc' } }],
     });
-    res.json(placements.filter((p) => p.company.latitude && p.company.longitude));
+    res.json(placements.map((p) => ({
+      id: p.id,
+      roleTitle: p.roleTitle,
+      studentName: p.student.fullName,
+      studentInitials: p.student.avatarInitials,
+      companyName: p.company.name,
+      companyCity: p.company.city,
+      companyAddress: p.company.address,
+      latitude: p.company.latitude,
+      longitude: p.company.longitude,
+    })));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
