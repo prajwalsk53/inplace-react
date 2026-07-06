@@ -13,7 +13,7 @@ const NAV = {
   ],
   TUTOR: [
     ['/tutor/dashboard', '📊', 'Dashboard'],
-    ['/tutor/placements', '💼', 'Placements'],
+    ['/tutor/placements', '👥', 'All Placements'],
     ['/tutor/create-placement', '➕', 'Create Placement'],
     ['/tutor/visits', '📅', 'Visits'],
     ['/tutor/schedule-visit', '🗓️', 'Schedule Visit'],

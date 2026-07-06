@@ -38,14 +38,74 @@ exports.getDashboard = async (req, res) => {
   }
 };
 
+function buildAllPlacementsWhere(query) {
+  const { status, company, location, search } = query;
+  const where = { AND: [] };
+
+  where.AND.push(status ? { status } : { status: { in: ['APPROVED', 'ACTIVE'] } });
+  if (company) where.AND.push({ company: { name: { contains: company, mode: 'insensitive' } } });
+  if (location) where.AND.push({ company: { city: location } });
+  if (search) {
+    where.AND.push({
+      OR: [
+        { student: { fullName: { contains: search, mode: 'insensitive' } } },
+        { company: { name: { contains: search, mode: 'insensitive' } } },
+        { company: { city: { contains: search, mode: 'insensitive' } } },
+      ],
+    });
+  }
+  return where;
+}
+
 exports.getPlacements = async (req, res) => {
   try {
     const placements = await prisma.placement.findMany({
-      where: { tutorId: req.user.id },
+      where: buildAllPlacementsWhere(req.query),
       include: placementListInclude,
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ startDate: 'desc' }, { student: { fullName: 'asc' } }],
     });
     res.json(placements);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.getPlacementFilterOptions = async (req, res) => {
+  try {
+    const companies = await prisma.company.findMany({
+      where: { placements: { some: { status: { in: ['APPROVED', 'ACTIVE'] } } } },
+      select: { name: true },
+      distinct: ['name'],
+      orderBy: { name: 'asc' },
+    });
+    const cities = await prisma.company.findMany({
+      where: { city: { not: null }, placements: { some: { status: { in: ['APPROVED', 'ACTIVE'] } } } },
+      select: { city: true },
+      distinct: ['city'],
+      orderBy: { city: 'asc' },
+    });
+    res.json({ companies: companies.map((c) => c.name), cities: cities.map((c) => c.city).filter(Boolean) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.exportAllPlacementsCsv = async (req, res) => {
+  try {
+    const placements = await prisma.placement.findMany({
+      where: buildAllPlacementsWhere(req.query),
+      include: placementListInclude,
+      orderBy: [{ startDate: 'desc' }, { student: { fullName: 'asc' } }],
+    });
+    const header = 'Student,Email,Company,City,Role,Start Date,End Date,Status\n';
+    const rows = placements.map((p) => [
+      p.student.fullName, p.student.email, p.company.name, p.company.city || '', p.roleTitle, p.status,
+      p.startDate ? p.startDate.toISOString().slice(0, 10) : '', p.endDate ? p.endDate.toISOString().slice(0, 10) : '',
+    ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename="all-placements.csv"');
+    res.send(header + rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -64,7 +124,7 @@ exports.getAtRiskPlacements = async (req, res) => {
 exports.getPlacement = async (req, res) => {
   try {
     const placement = await prisma.placement.findFirst({
-      where: { id: Number(req.params.id), tutorId: req.user.id },
+      where: { id: Number(req.params.id) },
       include: { ...placementListInclude, visits: true, reflections: true, reports: true, documents: true, changeRequests: true },
     });
     if (!placement) return res.status(404).json({ error: 'Placement not found' });
@@ -90,7 +150,7 @@ exports.getAvailableStudents = async (req, res) => {
 exports.createPlacement = async (req, res) => {
   try {
     const {
-      studentId, companyId, companyName, companyAddress, companySector, companyLat, companyLng,
+      studentId, companyId, companyName, companyAddress, companyCity, companySector, companyLat, companyLng,
       roleTitle, jobDescription, startDate, endDate, salary, workingPattern,
       supervisorName, supervisorEmail, supervisorPhone,
     } = req.body;
@@ -99,7 +159,7 @@ exports.createPlacement = async (req, res) => {
     if (!finalCompanyId) {
       if (!companyName) return res.status(400).json({ error: 'companyId or companyName is required' });
       const company = await prisma.company.create({
-        data: { name: companyName, address: companyAddress, sector: companySector, latitude: companyLat ? Number(companyLat) : null, longitude: companyLng ? Number(companyLng) : null },
+        data: { name: companyName, address: companyAddress, city: companyCity, sector: companySector, latitude: companyLat ? Number(companyLat) : null, longitude: companyLng ? Number(companyLng) : null },
       });
       finalCompanyId = company.id;
     }
@@ -134,7 +194,7 @@ exports.createPlacement = async (req, res) => {
 exports.updatePlacement = async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const existing = await prisma.placement.findFirst({ where: { id, tutorId: req.user.id } });
+    const existing = await prisma.placement.findFirst({ where: { id } });
     if (!existing) return res.status(404).json({ error: 'Placement not found' });
 
     const { roleTitle, jobDescription, startDate, endDate, salary, workingPattern, supervisorName, supervisorEmail, supervisorPhone, status } = req.body;
@@ -159,7 +219,7 @@ exports.updatePlacement = async (req, res) => {
 exports.terminatePlacement = async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const existing = await prisma.placement.findFirst({ where: { id, tutorId: req.user.id } });
+    const existing = await prisma.placement.findFirst({ where: { id } });
     if (!existing) return res.status(404).json({ error: 'Placement not found' });
     const placement = await prisma.placement.update({ where: { id }, data: { status: 'TERMINATED' } });
     await prisma.notification.create({
@@ -188,7 +248,7 @@ exports.getVisits = async (req, res) => {
 exports.scheduleVisit = async (req, res) => {
   try {
     const { placementId, scheduledAt, visitType } = req.body;
-    const placement = await prisma.placement.findFirst({ where: { id: Number(placementId), tutorId: req.user.id }, include: { student: true } });
+    const placement = await prisma.placement.findFirst({ where: { id: Number(placementId) }, include: { student: true } });
     if (!placement) return res.status(404).json({ error: 'Placement not found' });
 
     const visit = await prisma.visit.create({

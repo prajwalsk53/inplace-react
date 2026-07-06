@@ -86,6 +86,7 @@ model Company {
   id           Int      @id @default(autoincrement())
   name         String
   address      String?
+  city         String?
   sector       String?
   contactName  String?
   contactEmail String?

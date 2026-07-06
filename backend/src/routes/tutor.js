@@ -9,6 +9,8 @@ router.get('/dashboard', tutorController.getDashboard);
 
 router.get('/placements', tutorController.getPlacements);
 router.get('/placements/at-risk', tutorController.getAtRiskPlacements);
+router.get('/placements/filters', tutorController.getPlacementFilterOptions);
+router.get('/placements/export/csv', tutorController.exportAllPlacementsCsv);
 router.get('/placements/:id', tutorController.getPlacement);
 router.post('/placements', tutorController.createPlacement);
 router.put('/placements/:id', tutorController.updatePlacement);

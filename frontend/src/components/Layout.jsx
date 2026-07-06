@@ -11,7 +11,7 @@ const pageTitles = {
   '/student/announcements': ['Announcements', 'Messages from your placement team'],
 
   '/tutor/dashboard': ['Dashboard', 'Tutor overview'],
-  '/tutor/placements': ['Placements', 'Placements you manage'],
+  '/tutor/placements': ['All Placements', 'View and manage all student placements'],
   '/tutor/create-placement': ['Create Placement', 'Set up a new student placement'],
   '/tutor/visits': ['Visits', 'Manage placement visits'],
   '/tutor/schedule-visit': ['Schedule Visit', 'Book a new placement visit'],

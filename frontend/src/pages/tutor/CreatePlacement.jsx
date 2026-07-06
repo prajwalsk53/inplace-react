@@ -11,7 +11,7 @@ export default function CreatePlacement() {
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
-    studentId: '', companyId: '', companyName: '', companyAddress: '', companySector: '', companyLat: '', companyLng: '',
+    studentId: '', companyId: '', companyName: '', companyAddress: '', companyCity: '', companySector: '', companyLat: '', companyLng: '',
     roleTitle: '', jobDescription: '', startDate: '', endDate: '', salary: '', workingPattern: '',
     supervisorName: '', supervisorEmail: '', supervisorPhone: '',
   });
@@ -69,6 +69,7 @@ export default function CreatePlacement() {
           <>
             <div className="field"><label>Company name</label><input value={form.companyName} onChange={update('companyName')} required /></div>
             <div className="field"><label>Address</label><input value={form.companyAddress} onChange={update('companyAddress')} /></div>
+            <div className="field"><label>City</label><input value={form.companyCity} onChange={update('companyCity')} placeholder="e.g. Leicester" /></div>
             <div className="field"><label>Sector</label><input value={form.companySector} onChange={update('companySector')} /></div>
             <div className="grid-2">
               <div className="field"><label>Latitude</label><input value={form.companyLat} onChange={update('companyLat')} placeholder="52.6369" /></div>

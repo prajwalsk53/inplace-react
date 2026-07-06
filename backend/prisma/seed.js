@@ -25,19 +25,21 @@ async function seed() {
     create: { fullName: 'James Whitfield', email: 'tutor@inplace.com', password: hash, role: 'TUTOR', approvalStatus: 'APPROVED', avatarInitials: 'JW' },
   });
 
+  const companyFields = {
+    name: 'Acme Digital Ltd',
+    address: '12 Innovation Way, Leicester, LE1 6TP',
+    city: 'Leicester',
+    sector: 'Technology',
+    contactName: 'Sarah Collins',
+    contactEmail: 'sarah.collins@acmedigital.example',
+    contactPhone: '0116 555 0134',
+    latitude: 52.6369,
+    longitude: -1.1398,
+  };
   const company = await prisma.company.upsert({
     where: { id: 1 },
-    update: {},
-    create: {
-      name: 'Acme Digital Ltd',
-      address: '12 Innovation Way, Leicester, LE1 6TP',
-      sector: 'Technology',
-      contactName: 'Sarah Collins',
-      contactEmail: 'sarah.collins@acmedigital.example',
-      contactPhone: '0116 555 0134',
-      latitude: 52.6369,
-      longitude: -1.1398,
-    },
+    update: companyFields,
+    create: companyFields,
   });
 
   const provider = await prisma.user.upsert({

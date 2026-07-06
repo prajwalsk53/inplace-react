@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../../api/axios';
 
 export default function ScheduleVisit() {
+  const [searchParams] = useSearchParams();
   const [placements, setPlacements] = useState([]);
-  const [placementId, setPlacementId] = useState('');
+  const [placementId, setPlacementId] = useState(searchParams.get('placementId') || '');
   const [scheduledAt, setScheduledAt] = useState('');
   const [visitType, setVisitType] = useState('in_person');
   const [loading, setLoading] = useState(false);
