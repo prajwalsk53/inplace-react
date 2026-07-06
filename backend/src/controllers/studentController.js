@@ -147,21 +147,16 @@ exports.submitChangeRequest = async (req, res) => {
     const placement = await getCurrentPlacement(req.user.id);
     if (!placement) return res.status(404).json({ error: 'No active placement to raise a request against' });
 
-    const pendingCount = await prisma.placementChangeRequest.count({ where: { placementId: placement.id, status: 'PENDING' } });
+    const pendingCount = await prisma.placementChangeRequest.count({
+      where: { placementId: placement.id, status: { in: ['PENDING_PROVIDER', 'PENDING_TUTOR'] } },
+    });
     if (pendingCount > 0) {
       return res.status(400).json({ error: 'You already have a pending change request for this placement. Please wait for it to be reviewed.' });
     }
 
-    const fullDetails = proposedDetails ? `${details}\n\nProposed: ${proposedDetails}` : details;
     const request = await prisma.placementChangeRequest.create({
-      data: { placementId: placement.id, requestedById: req.user.id, requestType, details: fullDetails },
+      data: { placementId: placement.id, requestedById: req.user.id, requestType, justification: details, proposedDetails: proposedDetails || null },
     });
-
-    if (placement.tutorId) {
-      await prisma.notification.create({
-        data: { userId: placement.tutorId, type: 'change_request', title: 'New change request', body: `${req.user.fullName} submitted a ${requestType} request.`, link: `/tutor/requests` },
-      });
-    }
 
     const providerUser = await prisma.user.findFirst({ where: { role: 'PROVIDER', companyId: placement.companyId, isActive: true } });
     const toEmail = providerUser?.email || placement.supervisorEmail;
@@ -169,6 +164,11 @@ exports.submitChangeRequest = async (req, res) => {
     if (toEmail) {
       const { mailChangeRequestSubmitted } = require('../utils/mailer');
       await mailChangeRequestSubmitted(toEmail, toName, req.user.fullName, placement.company.name, CHANGE_TYPE_LABELS[requestType] || requestType.replace(/_/g, ' '), details, proposedDetails);
+    }
+    if (providerUser) {
+      await prisma.notification.create({
+        data: { userId: providerUser.id, type: 'change_request', title: 'New change request', body: `${req.user.fullName} submitted a ${requestType} request.`, link: '/provider/requests' },
+      });
     }
 
     await logAction(req.user.id, 'submit_change_request', 'placement_change_requests', request.id);

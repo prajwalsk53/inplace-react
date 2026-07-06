@@ -399,6 +399,7 @@ tbody tr:hover { background: rgba(232,160,32,0.05); }
 
 .badge-approved { background: var(--success-bg); color: var(--success); }
 .badge-rejected { background: var(--danger-bg); color: var(--danger); }
+.badge-open { background: var(--info-bg); color: var(--info); }
 
 .btn-ghost { background: transparent; color: var(--muted); border: 1.5px solid var(--border); }
 .btn-ghost:hover { background: var(--cream); color: var(--text); }

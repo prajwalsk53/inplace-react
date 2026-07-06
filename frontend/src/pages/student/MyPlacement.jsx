@@ -14,7 +14,8 @@ const CHANGE_TYPE_LABELS = {
   salary: 'Change Salary / Terms',
 };
 
-const STATUS_BADGE = { PENDING: 'badge-pending', APPROVED: 'badge-approved', REJECTED: 'badge-rejected' };
+const STATUS_BADGE = { PENDING_PROVIDER: 'badge-pending', PENDING_TUTOR: 'badge-review', APPROVED: 'badge-approved', REJECTED: 'badge-rejected' };
+const STATUS_LABEL = { PENDING_PROVIDER: 'Pending Provider', PENDING_TUTOR: 'Pending Tutor', APPROVED: 'Approved', REJECTED: 'Rejected' };
 
 const DOC_CATEGORIES = [
   ['offer_letter', 'Offer Letter'],
@@ -101,9 +102,8 @@ export default function MyPlacement() {
     e.preventDefault();
     setSubmitting(true);
     setChangeError(null);
-    const details = proposedDetails ? `${justification}\n\nProposed: ${proposedDetails}` : justification;
     try {
-      await api.post('/student/change-requests', { requestType: changeType, details });
+      await api.post('/student/change-requests', { requestType: changeType, details: justification, proposedDetails });
       setChangeType(''); setJustification(''); setProposedDetails(''); setShowChangeModal(false);
       load();
     } catch (err) {
@@ -249,16 +249,21 @@ export default function MyPlacement() {
           <div className="table-wrap">
             <table>
               <thead>
-                <tr><th>Type of Change</th><th>Details</th><th>Status</th><th>Submitted</th><th>Comments</th></tr>
+                <tr><th>Type of Change</th><th>Justification</th><th>Proposed Details</th><th>Status</th><th>Submitted</th><th>Comments</th></tr>
               </thead>
               <tbody>
                 {changeRequests.map((cr) => (
                   <tr key={cr.id}>
                     <td><span className="type-chip">{CHANGE_TYPE_LABELS[cr.requestType] || cr.requestType.replace(/_/g, ' ')}</span></td>
-                    <td style={{ maxWidth: 260, fontSize: '0.875rem', whiteSpace: 'pre-wrap' }}>{cr.details}</td>
-                    <td><span className={`badge ${STATUS_BADGE[cr.status]}`}>{cr.status}</span></td>
+                    <td style={{ maxWidth: 220, fontSize: '0.875rem', whiteSpace: 'pre-wrap' }}>{cr.justification}</td>
+                    <td style={{ maxWidth: 180, fontSize: '0.875rem', color: 'var(--muted)', whiteSpace: 'pre-wrap' }}>{cr.proposedDetails || '—'}</td>
+                    <td><span className={`badge ${STATUS_BADGE[cr.status]}`}>{STATUS_LABEL[cr.status]}</span></td>
                     <td style={{ fontSize: '0.8125rem', color: 'var(--muted)' }}>{fmtDate(cr.createdAt)}</td>
-                    <td style={{ fontSize: '0.8125rem' }}>{cr.reviewNotes || <span style={{ color: 'var(--muted)' }}>—</span>}</td>
+                    <td style={{ fontSize: '0.8125rem' }}>
+                      {cr.providerComment && <p><strong>Provider:</strong> {cr.providerComment}</p>}
+                      {cr.tutorComment && <p><strong>Tutor:</strong> {cr.tutorComment}</p>}
+                      {!cr.providerComment && !cr.tutorComment && <span style={{ color: 'var(--muted)' }}>—</span>}
+                    </td>
                   </tr>
                 ))}
               </tbody>

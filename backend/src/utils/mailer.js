@@ -79,6 +79,20 @@ function mailAccountRejected(email, name, reason) {
   return sendEmail(email, name, 'InPlace — Application Decision', mailTemplate('Application Not Approved', body));
 }
 
+function mailPlacementApproved(email, name, companyName) {
+  const body = p(`Dear <strong>${name}</strong>,`)
+    + p(`🎉 Great news! Your placement at <strong>${companyName}</strong> has been <strong style="color:#059669;">approved</strong> by your Placement Tutor. You can now log in and view your full placement details.`);
+  return sendEmail(email, name, 'InPlace - Your Placement Has Been Approved!', mailTemplate('Placement Approved', body, 'View My Dashboard', `${APP_URL}/student/dashboard`));
+}
+
+function mailPlacementRejected(email, name, companyName, comments) {
+  const body = p(`Dear <strong>${name}</strong>,`)
+    + p(`Your placement request at <strong>${companyName}</strong> has not been approved at this time.`)
+    + (comments ? p(`<strong>Tutor feedback:</strong> ${comments.replace(/\n/g, '<br>')}`) : '')
+    + p('Please contact your tutor if you have any questions.');
+  return sendEmail(email, name, 'InPlace - Placement Request Update', mailTemplate('Placement Request Not Approved', body, 'View My Dashboard', `${APP_URL}/student/dashboard`));
+}
+
 function mailOtp(email, name, code) {
   const body = p(`Hi <strong>${name}</strong>, your verification code is:`)
     + `<div style="text-align:center;font-size:32px;font-weight:800;letter-spacing:8px;color:#0A2540;margin:20px 0;">${code}</div>`
@@ -205,4 +219,5 @@ module.exports = {
   mailWelcome, mailAccountApproved, mailAccountRejected,
   mailOtp, mailPasswordReset, mailProviderConfirm, mailNewMessage, mailVisitScheduled,
   mailPlacementRequestSubmitted, mailChangeRequestSubmitted, mailProviderMeetingScheduled,
+  mailPlacementApproved, mailPlacementRejected,
 };

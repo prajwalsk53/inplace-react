@@ -653,13 +653,95 @@ exports.updateProviderMeetingStatus = async (req, res) => {
   }
 };
 
+const PLACEMENT_REQUEST_TUTOR_VISIBLE = ['AWAITING_TUTOR', 'APPROVED', 'REJECTED', 'ACTIVE', 'TERMINATED'];
+const PLACEMENT_REQUEST_ORDER = ['AWAITING_TUTOR', 'APPROVED', 'ACTIVE', 'REJECTED', 'TERMINATED'];
+
+exports.getPlacementRequests = async (req, res) => {
+  try {
+    const { status, search } = req.query;
+    const where = { AND: [] };
+    where.AND.push(status && PLACEMENT_REQUEST_TUTOR_VISIBLE.includes(status) ? { status } : { status: { in: PLACEMENT_REQUEST_TUTOR_VISIBLE } });
+    if (search) {
+      where.AND.push({
+        OR: [
+          { student: { fullName: { contains: search, mode: 'insensitive' } } },
+          { company: { name: { contains: search, mode: 'insensitive' } } },
+          { company: { city: { contains: search, mode: 'insensitive' } } },
+        ],
+      });
+    }
+
+    const placements = await prisma.placement.findMany({
+      where,
+      include: {
+        student: { select: { fullName: true, email: true, avatarInitials: true } },
+        company: true,
+        _count: { select: { documents: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    placements.sort((a, b) => PLACEMENT_REQUEST_ORDER.indexOf(a.status) - PLACEMENT_REQUEST_ORDER.indexOf(b.status));
+
+    const counts = await prisma.placement.groupBy({ by: ['status'], where: { status: { in: PLACEMENT_REQUEST_TUTOR_VISIBLE } }, _count: { _all: true } });
+    const countMap = {};
+    counts.forEach((c) => { countMap[c.status] = c._count._all; });
+
+    res.json({ requests: placements, counts: countMap });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.respondPlacementRequest = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const { decision, comments } = req.body; // "approved" | "rejected"
+    if (!['approved', 'rejected'].includes(decision)) return res.status(400).json({ error: 'Invalid decision' });
+
+    const placement = await prisma.placement.findFirst({ where: { id }, include: { student: true, company: true } });
+    if (!placement) return res.status(404).json({ error: 'Placement not found' });
+
+    const status = decision === 'approved' ? 'APPROVED' : 'REJECTED';
+    const updated = await prisma.placement.update({
+      where: { id },
+      data: { status, tutorComments: comments || null, tutorId: req.user.id },
+    });
+
+    const msg = decision === 'approved'
+      ? 'Your placement request has been approved! Log in to view your placement details.'
+      : `Your placement request was not approved.${comments ? ` Tutor feedback: ${comments}` : ' Please contact your tutor for more information.'}`;
+
+    await prisma.message.create({ data: { senderId: req.user.id, receiverId: placement.studentId, isRead: false, body: msg } });
+
+    const { mailPlacementApproved, mailPlacementRejected } = require('../utils/mailer');
+    if (decision === 'approved') {
+      await mailPlacementApproved(placement.student.email, placement.student.fullName, placement.company.name);
+    } else {
+      await mailPlacementRejected(placement.student.email, placement.student.fullName, placement.company.name, comments);
+    }
+
+    await logAction(req.user.id, `placement_${decision}`, 'placements', id, comments);
+
+    res.json({
+      placement: updated,
+      message: decision === 'approved'
+        ? '✅ Placement approved! Student has been notified by email.'
+        : '❌ Placement rejected. Student has been notified by email.',
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.getChangeRequests = async (req, res) => {
   try {
     const requests = await prisma.placementChangeRequest.findMany({
-      where: { placement: { tutorId: req.user.id } },
-      include: { placement: { include: { student: { select: { fullName: true } } } }, requestedBy: { select: { fullName: true } } },
+      include: { placement: { include: { student: true, company: true } } },
       orderBy: { createdAt: 'desc' },
     });
+    const order = ['PENDING_TUTOR', 'PENDING_PROVIDER', 'APPROVED', 'REJECTED'];
+    requests.sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status));
     res.json(requests);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -669,18 +751,30 @@ exports.getChangeRequests = async (req, res) => {
 exports.respondChangeRequest = async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const { decision, reviewNotes } = req.body; // "approve" | "reject"
-    const request = await prisma.placementChangeRequest.findFirst({ where: { id, placement: { tutorId: req.user.id } } });
+    const { decision, comment } = req.body; // "approve" | "reject"
+    const request = await prisma.placementChangeRequest.findFirst({
+      where: { id, status: 'PENDING_TUTOR' },
+      include: { requestedBy: true },
+    });
     if (!request) return res.status(404).json({ error: 'Change request not found' });
 
+    const status = decision === 'approve' ? 'APPROVED' : 'REJECTED';
     const updated = await prisma.placementChangeRequest.update({
       where: { id },
-      data: { status: decision === 'approve' ? 'APPROVED' : 'REJECTED', reviewedById: req.user.id, reviewNotes },
+      data: { status, reviewedById: req.user.id, tutorComment: comment || null },
     });
-    await prisma.notification.create({
-      data: { userId: request.requestedById, type: 'change_request', title: `Request ${updated.status.toLowerCase()}`, body: reviewNotes || '', link: '/student/submit-request' },
+
+    const changeTypeLabel = request.requestType.replace(/_/g, ' ');
+    const msg = decision === 'approve'
+      ? `Your placement change request (${changeTypeLabel}) has been approved! Please contact your tutor to discuss next steps.${comment ? ` Tutor note: ${comment}` : ''}`
+      : `Your placement change request (${changeTypeLabel}) was not approved.${comment ? ` Tutor feedback: ${comment}` : ' Please contact your tutor for more information.'}`;
+
+    await prisma.message.create({ data: { senderId: req.user.id, receiverId: request.requestedById, isRead: false, body: msg } });
+
+    res.json({
+      request: updated,
+      message: decision === 'approve' ? '✅ Change request approved. Student has been notified.' : '❌ Change request rejected. Student has been notified.',
     });
-    res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

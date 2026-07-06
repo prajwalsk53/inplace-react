@@ -18,6 +18,9 @@ router.get('/visits/:id', providerController.getVisit);
 router.get('/meetings', providerController.getMeetings);
 router.put('/meetings/:id/respond', providerController.respondMeeting);
 
+router.get('/change-requests', providerController.getChangeRequests);
+router.put('/change-requests/:id/respond', providerController.respondChangeRequest);
+
 router.get('/issues', providerController.getIssues);
 router.post('/issues', providerController.createIssue);
 router.put('/issues/:id', providerController.updateIssue);

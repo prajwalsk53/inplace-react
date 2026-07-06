@@ -38,6 +38,9 @@ router.get('/provider-meetings', tutorController.getProviderMeetings);
 router.post('/provider-meetings', tutorController.requestProviderMeeting);
 router.post('/provider-meetings/:id/status', tutorController.updateProviderMeetingStatus);
 
+router.get('/placement-requests', tutorController.getPlacementRequests);
+router.post('/placement-requests/:id/respond', tutorController.respondPlacementRequest);
+
 router.get('/requests', tutorController.getChangeRequests);
 router.post('/requests/:id/respond', tutorController.respondChangeRequest);
 

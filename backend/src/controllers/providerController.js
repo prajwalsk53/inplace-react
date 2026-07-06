@@ -160,6 +160,53 @@ exports.respondMeeting = async (req, res) => {
   }
 };
 
+exports.getChangeRequests = async (req, res) => {
+  try {
+    const companyId = requireCompany(req, res);
+    if (!companyId) return;
+    const requests = await prisma.placementChangeRequest.findMany({
+      where: { placement: { companyId } },
+      include: { placement: { include: { student: true, company: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(requests);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.respondChangeRequest = async (req, res) => {
+  try {
+    const companyId = requireCompany(req, res);
+    if (!companyId) return;
+    const { decision, comment } = req.body; // "approve" | "reject"
+    const request = await prisma.placementChangeRequest.findFirst({
+      where: { id: Number(req.params.id), status: 'PENDING_PROVIDER', placement: { companyId } },
+      include: { placement: { include: { student: true, tutor: true } } },
+    });
+    if (!request) return res.status(404).json({ error: 'Change request not found' });
+
+    const status = decision === 'approve' ? 'PENDING_TUTOR' : 'REJECTED';
+    const updated = await prisma.placementChangeRequest.update({
+      where: { id: request.id },
+      data: { status, providerComment: comment || null },
+    });
+
+    if (decision === 'approve' && request.placement.tutorId) {
+      await prisma.notification.create({
+        data: { userId: request.placement.tutorId, type: 'change_request', title: 'Change request awaiting your approval', body: `${request.placement.student.fullName}'s ${request.requestType} request has been approved by the provider and now needs your review.`, link: '/tutor/requests' },
+      });
+    } else if (decision === 'reject') {
+      const msg = `Your placement change request was not approved by the provider.${comment ? ` Provider feedback: ${comment}` : ''}`;
+      await prisma.message.create({ data: { senderId: req.user.id, receiverId: request.placement.student.id, isRead: false, body: msg } });
+    }
+
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.getIssues = async (req, res) => {
   try {
     const companyId = requireCompany(req, res);

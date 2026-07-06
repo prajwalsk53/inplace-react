@@ -35,7 +35,8 @@ enum PlacementStatus {
 }
 
 enum ChangeRequestStatus {
-  PENDING
+  PENDING_PROVIDER
+  PENDING_TUTOR
   APPROVED
   REJECTED
 }
@@ -124,6 +125,7 @@ model Placement {
   supervisorEmail String?
   supervisorPhone String?
   status          PlacementStatus @default(SUBMITTED)
+  tutorComments   String?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
@@ -152,19 +154,21 @@ model PlacementOpportunity {
 }
 
 model PlacementChangeRequest {
-  id            Int                 @id @default(autoincrement())
-  placementId   Int
-  placement     Placement           @relation(fields: [placementId], references: [id])
-  requestedById Int
-  requestedBy   User                @relation("RequestedBy", fields: [requestedById], references: [id])
-  requestType   String
-  details       String
-  status        ChangeRequestStatus @default(PENDING)
-  reviewedById  Int?
-  reviewedBy    User?               @relation("ReviewedBy", fields: [reviewedById], references: [id])
-  reviewNotes   String?
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+  id              Int                 @id @default(autoincrement())
+  placementId     Int
+  placement       Placement           @relation(fields: [placementId], references: [id])
+  requestedById   Int
+  requestedBy     User                @relation("RequestedBy", fields: [requestedById], references: [id])
+  requestType     String
+  justification   String
+  proposedDetails String?
+  status          ChangeRequestStatus @default(PENDING_PROVIDER)
+  providerComment String?
+  reviewedById    Int?
+  reviewedBy      User?               @relation("ReviewedBy", fields: [reviewedById], references: [id])
+  tutorComment    String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 }
 
 model Document {
