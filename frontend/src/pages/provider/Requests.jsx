@@ -26,7 +26,7 @@ export default function ProviderRequests() {
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
             <div>
               <strong>{m.requestedBy.fullName}</strong>
-              <div style={{ fontSize: 13, color: 'var(--muted)' }}>{m.purpose}</div>
+              <div style={{ fontSize: 13, color: 'var(--muted)' }}>{m.agenda}</div>
             </div>
             <span className="badge badge-muted">{m.status}</span>
           </div>

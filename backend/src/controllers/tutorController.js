@@ -1,8 +1,8 @@
 const prisma = require('../config/db');
 const { issueProviderToken } = require('../utils/providerToken');
-const { mailVisitScheduled } = require('../utils/mailer');
+const { mailVisitScheduled, mailProviderMeetingScheduled } = require('../utils/mailer');
 const { logAction } = require('../utils/auditLog');
-const { buildVisitIcs } = require('../utils/calendarInvite');
+const { buildVisitIcs, buildMeetingIcs } = require('../utils/calendarInvite');
 
 const AT_RISK_VISIT_DAYS = 60;
 
@@ -584,7 +584,7 @@ exports.getProviderMeetings = async (req, res) => {
     const meetings = await prisma.providerMeeting.findMany({
       where: { requestedById: req.user.id },
       include: { company: true },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { scheduledAt: 'desc' },
     });
     res.json(meetings);
   } catch (err) {
@@ -594,11 +594,60 @@ exports.getProviderMeetings = async (req, res) => {
 
 exports.requestProviderMeeting = async (req, res) => {
   try {
-    const { companyId, purpose, scheduledAt } = req.body;
+    const { companyId, contactName, contactEmail, meetingDate, meetingTime, duration, meetingType, location, meetingLink, agenda } = req.body;
+    if (!companyId || !meetingDate || !meetingTime) {
+      return res.status(400).json({ error: 'Please fill in all required fields.' });
+    }
+
+    const company = await prisma.company.findUnique({ where: { id: Number(companyId) } });
+    if (!company) return res.status(404).json({ error: 'Company not found' });
+
+    const scheduledAt = new Date(`${meetingDate}T${meetingTime}`);
     const meeting = await prisma.providerMeeting.create({
-      data: { companyId: Number(companyId), requestedById: req.user.id, purpose, scheduledAt: scheduledAt ? new Date(scheduledAt) : null, status: scheduledAt ? 'scheduled' : 'requested' },
+      data: {
+        companyId: company.id, requestedById: req.user.id,
+        contactName: contactName || null, contactEmail: contactEmail || null,
+        scheduledAt, durationHours: duration ? Number(duration) : 1,
+        meetingType: meetingType || 'physical', location: location || null, meetingLink: meetingLink || null,
+        agenda: agenda || null, status: 'scheduled',
+      },
+      include: { company: true },
     });
-    res.status(201).json(meeting);
+
+    let emailSent = false;
+    if (contactEmail) {
+      try {
+        const icsContent = buildMeetingIcs(meeting, { name: req.user.fullName, email: req.user.email }, { name: contactName || company.name, email: contactEmail });
+        await mailProviderMeetingScheduled({
+          organizer: { name: req.user.fullName, email: req.user.email },
+          contactName, contactEmail, companyName: company.name,
+          scheduledAt, durationHours: meeting.durationHours, meetingType: meeting.meetingType,
+          location, meetingLink, agenda,
+        }, icsContent);
+        emailSent = true;
+      } catch (e) { /* email is best-effort */ }
+    }
+
+    res.status(201).json({
+      meeting,
+      message: emailSent
+        ? `Meeting scheduled! Calendar invite sent to ${contactEmail} and your email.`
+        : `Meeting scheduled successfully!${contactEmail ? ' (Email invite could not be sent — check SMTP settings.)' : ' No contact email — invite not sent.'}`,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.updateProviderMeetingStatus = async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const status = ['completed', 'cancelled'].includes(req.body.status) ? req.body.status : null;
+    if (!status) return res.status(400).json({ error: 'Invalid status' });
+    const existing = await prisma.providerMeeting.findFirst({ where: { id, requestedById: req.user.id } });
+    if (!existing) return res.status(404).json({ error: 'Meeting not found' });
+    const meeting = await prisma.providerMeeting.update({ where: { id }, data: { status } });
+    res.json(meeting);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -237,9 +237,15 @@ model ProviderMeeting {
   company       Company   @relation(fields: [companyId], references: [id])
   requestedById Int
   requestedBy   User      @relation("MeetingRequestedBy", fields: [requestedById], references: [id])
+  contactName   String?
+  contactEmail  String?
   scheduledAt   DateTime?
-  purpose       String?
-  status        String    @default("requested")
+  durationHours Float     @default(1)
+  meetingType   String    @default("physical")
+  location      String?
+  meetingLink   String?
+  agenda        String?
+  status        String    @default("scheduled")
   notes         String?
   createdAt     DateTime  @default(now())
 }

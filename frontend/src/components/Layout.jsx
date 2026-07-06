@@ -16,7 +16,7 @@ const pageTitles = {
   '/tutor/visits': ['Visits', 'Manage placement visits'],
   '/tutor/schedule-visit': ['Schedule Visit', 'Book a new placement visit'],
   '/tutor/providers': ['Provider Directory', 'Manage placement companies and providers'],
-  '/tutor/provider-meetings': ['Provider Meetings', 'Meetings with placement providers'],
+  '/tutor/provider-meetings': ['Provider Meetings', 'Schedule and manage meetings with placement providers'],
   '/tutor/requests': ['Requests', 'Placement change requests'],
   '/tutor/reports': ['Reflections & Reports', 'Review student submissions'],
   '/tutor/announcements': ['Announcements', 'Post placement updates'],

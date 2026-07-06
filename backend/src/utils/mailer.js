@@ -141,6 +141,42 @@ function mailVisitScheduled(visit, icsContent) {
   ]);
 }
 
+function mailProviderMeetingScheduled(meeting, icsContent) {
+  const { organizer, contactName, contactEmail, companyName } = meeting;
+  const start = new Date(meeting.scheduledAt);
+  const end = new Date(start.getTime() + (meeting.durationHours || 1) * 60 * 60 * 1000);
+  const fmtDate = start.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const fmtStart = start.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true });
+  const fmtEnd = end.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true });
+  const location = meeting.meetingType === 'virtual' ? 'Virtual Meeting' : (meeting.location || companyName);
+
+  let body = p(`<strong>${organizer.name}</strong> from the University of Leicester has scheduled a meeting with <strong>${companyName}</strong>.`)
+    + `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E2E8F0;border-radius:10px;overflow:hidden;margin:16px 0;">
+        <tr><td style="padding:10px 16px;background:#F8FAFF;font-weight:600;width:40%;">Date</td><td style="padding:10px 16px;">${fmtDate}</td></tr>
+        <tr><td style="padding:10px 16px;font-weight:600;">Time</td><td style="padding:10px 16px;">${fmtStart} - ${fmtEnd}</td></tr>
+        <tr><td style="padding:10px 16px;background:#F8FAFF;font-weight:600;">Type</td><td style="padding:10px 16px;">${meeting.meetingType === 'virtual' ? 'Virtual (Online)' : 'In-Person'}</td></tr>
+        <tr><td style="padding:10px 16px;font-weight:600;">Location</td><td style="padding:10px 16px;">${location}</td></tr>
+        <tr><td style="padding:10px 16px;background:#F8FAFF;font-weight:600;">Organiser</td><td style="padding:10px 16px;">${organizer.name} (${organizer.email})</td></tr>
+      </table>`;
+
+  if (meeting.meetingType === 'virtual' && meeting.meetingLink) {
+    body += `<div style="background:#e0f2fe;padding:15px;border-radius:8px;margin:20px 0;"><p style="margin:0;font-size:14px;"><strong>Join Meeting:</strong></p><p style="margin:10px 0 0;"><a href="${meeting.meetingLink}" style="color:#0369a1;word-break:break-all;">${meeting.meetingLink}</a></p></div>`;
+  }
+  if (meeting.agenda) {
+    body += p(`<strong>Agenda:</strong><br>${meeting.agenda.replace(/\n/g, '<br>')}`);
+  }
+  body += p('A calendar invite (.ics) is attached. You can Accept or Decline from your email client.');
+
+  const html = mailTemplate('Provider Meeting Scheduled', body);
+  const attachments = [{ filename: 'meeting.ics', content: icsContent, contentType: 'text/calendar; method=REQUEST; charset=UTF-8' }];
+  const subject = `📅 Meeting Request: ${companyName} — ${start.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+
+  return Promise.all([
+    sendEmail(contactEmail, contactName || companyName, subject, html, attachments),
+    sendEmail(organizer.email, organizer.name, subject, html, attachments),
+  ]);
+}
+
 function mailPlacementRequestSubmitted(email, name, companyName, roleTitle, startDate, endDate) {
   const body = p(`Your placement request has been successfully submitted, <strong>${name}</strong>. The placement provider has been notified and will review your request shortly.`)
     + `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E2E8F0;border-radius:10px;overflow:hidden;margin:16px 0;">
@@ -168,5 +204,5 @@ module.exports = {
   sendEmail, mailTemplate, p,
   mailWelcome, mailAccountApproved, mailAccountRejected,
   mailOtp, mailPasswordReset, mailProviderConfirm, mailNewMessage, mailVisitScheduled,
-  mailPlacementRequestSubmitted, mailChangeRequestSubmitted,
+  mailPlacementRequestSubmitted, mailChangeRequestSubmitted, mailProviderMeetingScheduled,
 };
