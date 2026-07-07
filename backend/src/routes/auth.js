@@ -10,6 +10,7 @@ router.post('/login', verifyRecaptcha, authController.login);
 router.post('/send-otp', authController.sendOtp);
 router.post('/verify-otp', authController.verifyOtpCode);
 router.post('/forgot-password', authController.forgotPassword);
+router.get('/reset-password/:token', authController.checkResetToken);
 router.post('/reset-password', authController.resetPassword);
 
 router.get('/me', authenticate, authController.getMe);

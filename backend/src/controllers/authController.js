@@ -258,19 +258,38 @@ exports.forgotPassword = async (req, res) => {
   }
 };
 
-exports.resetPassword = async (req, res) => {
+exports.checkResetToken = async (req, res) => {
   try {
-    const { token, newPassword } = req.body;
+    const { token } = req.params;
     const record = await prisma.passwordReset.findUnique({ where: { token } });
     if (!record || record.usedAt || record.expiresAt < new Date()) {
-      return res.status(400).json({ error: 'Invalid or expired reset link' });
+      return res.status(400).json({ valid: false, error: 'This password reset link is invalid or has expired. Please request a new one.' });
+    }
+    res.json({ valid: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token, newPassword, confirmPassword } = req.body;
+    const record = await prisma.passwordReset.findUnique({ where: { token } });
+    if (!record || record.usedAt || record.expiresAt < new Date()) {
+      return res.status(400).json({ error: 'This password reset link is invalid or has expired. Please request a new one.' });
+    }
+    if ((newPassword || '').length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    }
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ error: 'Passwords do not match.' });
     }
     const hashed = await bcrypt.hash(newPassword, 12);
     await prisma.$transaction([
       prisma.user.update({ where: { id: record.userId }, data: { password: hashed } }),
       prisma.passwordReset.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
     ]);
-    res.json({ message: 'Password reset successfully. You can now sign in.' });
+    res.json({ message: 'Your password has been reset successfully. Please log in with your new password.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
