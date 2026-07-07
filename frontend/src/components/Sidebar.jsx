@@ -40,12 +40,12 @@ const NAV = {
     ['/provider/settings', '⚙️', 'Company Details'],
   ],
   DIRECTOR: [
-    ['/director/dashboard', '📊', 'Dashboard'],
-    ['/director/placements', '💼', 'Placements'],
-    ['/director/at-risk', '⚠️', 'At Risk'],
+    ['/director/dashboard', '🏠', 'Dashboard'],
+    ['/director/placements', '📊', 'Placements'],
+    ['/director/map', '🗺', 'Map View'],
+    ['/director/at-risk', '⚠️', 'At-Risk Students'],
     ['/director/feedback', '⭐', 'Employer Feedback'],
-    ['/director/map', '🗺️', 'Map'],
-    ['/director/reports', '📈', 'Reports'],
+    ['/director/reports', '📥', 'Reports & Exports'],
   ],
   ADMIN: [
     ['/admin/dashboard', '🏠', 'Dashboard'],

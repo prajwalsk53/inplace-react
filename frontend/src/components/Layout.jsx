@@ -34,12 +34,12 @@ const pageTitles = {
   '/provider/opportunities': ['Placement Opportunities', 'Post and manage available placement roles for future students'],
   '/provider/settings': ['Company Details', 'Update your company information'],
 
-  '/director/dashboard': ['Dashboard', 'Programme overview'],
-  '/director/placements': ['Placements', 'All placements'],
-  '/director/at-risk': ['At Risk', 'Placements needing attention'],
-  '/director/feedback': ['Employer Feedback', 'Provider evaluations'],
-  '/director/map': ['Map', 'Placements by location'],
-  '/director/reports': ['Reports', 'Programme analytics'],
+  '/director/dashboard': ['Programme Director Dashboard', 'Read-only oversight of the placement year programme'],
+  '/director/placements': ['Placement Statistics', 'Aggregate placement data by sector, region and company'],
+  '/director/at-risk': ['At-Risk Students', 'Read-only view of flagged students requiring attention'],
+  '/director/feedback': ['Employer Feedback', 'Summary of provider performance evaluations'],
+  '/director/map': ['Placement Map', 'Geographic view of all active placement locations'],
+  '/director/reports': ['Reports & Exports', 'Download data exports and summary reports'],
 
   '/admin/dashboard': ['System Administration', 'Manage users, settings and system health'],
   '/admin/users': ['User Management', 'Create, edit and manage user accounts'],
