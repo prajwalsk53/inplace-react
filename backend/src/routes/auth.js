@@ -5,6 +5,7 @@ const { authenticate } = require('../middleware/auth');
 const { verifyRecaptcha } = require('../middleware/recaptcha');
 
 router.post('/register', verifyRecaptcha, authController.register);
+router.post('/register/send-otp', authController.sendRegistrationOtp);
 router.post('/login', verifyRecaptcha, authController.login);
 router.post('/send-otp', authController.sendOtp);
 router.post('/verify-otp', authController.verifyOtpCode);

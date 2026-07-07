@@ -416,10 +416,12 @@ model AuditLog {
 
 model OtpCode {
   id        Int       @id @default(autoincrement())
-  userId    Int
-  user      User      @relation(fields: [userId], references: [id])
+  userId    Int?
+  user      User?     @relation(fields: [userId], references: [id])
+  email     String?
   code      String
   purpose   String    @default("email_verification")
+  attempts  Int       @default(0)
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime  @default(now())

@@ -109,6 +109,28 @@ function mailOtp(email, name, code) {
   return sendEmail(email, name, 'InPlace — Verification Code', mailTemplate('Verify Your Email', body));
 }
 
+function mailRegistrationOtp(email, code) {
+  const body = `<p style="font-size:15px;color:#374151;line-height:1.7;margin:0 0 14px;">Your OTP is:</p>`
+    + `<div style="text-align:center;font-size:32px;font-weight:800;letter-spacing:8px;color:#0A2540;margin:20px 0;">${code}</div>`
+    + p('Expires in 10 minutes.');
+  return sendEmail(email, email, 'InPlace - Email Verification Code', mailTemplate('Email Verification', body));
+}
+
+function mailNewRegistration(admins, fullName, email, academicYear, programmeType) {
+  const registeredAt = new Date().toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const body = p('A new student has registered and is awaiting your approval.')
+    + `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E2E8F0;border-radius:10px;overflow:hidden;margin:16px 0;">
+        <tr><td style="padding:10px 16px;background:#F8FAFF;font-weight:600;width:40%;">Full Name</td><td style="padding:10px 16px;">${fullName}</td></tr>
+        <tr><td style="padding:10px 16px;font-weight:600;">Email</td><td style="padding:10px 16px;">${email}</td></tr>
+        <tr><td style="padding:10px 16px;background:#F8FAFF;font-weight:600;">Academic Year</td><td style="padding:10px 16px;">${academicYear}</td></tr>
+        <tr><td style="padding:10px 16px;font-weight:600;">Programme</td><td style="padding:10px 16px;">${programmeType}</td></tr>
+        <tr><td style="padding:10px 16px;background:#F8FAFF;font-weight:600;">Registered At</td><td style="padding:10px 16px;">${registeredAt}</td></tr>
+      </table>`
+    + p('The student cannot log in until approved.');
+  const html = mailTemplate('New Student Registration — Pending Approval', body, 'Review & Approve Registration', `${APP_URL}/admin/approve-registrations`);
+  return Promise.all(admins.map((admin) => sendEmail(admin.email, admin.fullName, `InPlace - New Registration Pending Approval: ${fullName}`, html)));
+}
+
 function mailPasswordReset(email, name, resetUrl) {
   const body = p(`Hi <strong>${name}</strong>, a password reset was requested for your InPlace account.`)
     + p('If you did not request this, you can safely ignore this email.');
@@ -226,7 +248,7 @@ function mailChangeRequestSubmitted(email, name, studentName, companyName, chang
 module.exports = {
   sendEmail, mailTemplate, p,
   mailWelcome, mailAccountApproved, mailAccountRejected,
-  mailOtp, mailPasswordReset, mailProviderConfirm, mailNewMessage, mailVisitScheduled,
+  mailOtp, mailRegistrationOtp, mailNewRegistration, mailPasswordReset, mailProviderConfirm, mailNewMessage, mailVisitScheduled,
   mailPlacementRequestSubmitted, mailChangeRequestSubmitted, mailProviderMeetingScheduled,
   mailPlacementApproved, mailPlacementRejected, mailReportReminder,
 };

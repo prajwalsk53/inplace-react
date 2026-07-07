@@ -2,9 +2,17 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const prisma = require('../config/db');
-const { mailWelcome, mailPasswordReset } = require('../utils/mailer');
+const { mailWelcome, mailPasswordReset, mailRegistrationOtp, mailNewRegistration } = require('../utils/mailer');
 const { issueOtp, verifyOtp } = require('../utils/otp');
 const { logAction } = require('../utils/auditLog');
+
+const LEICESTER_STUDENT_EMAIL = /@student\.le\.ac\.uk$/i;
+const OTP_TTL_MINUTES = 10;
+const OTP_MAX_ATTEMPTS = 3;
+
+function isPasswordStrong(password) {
+  return password.length >= 8 && /[A-Z]/.test(password) && /[a-z]/.test(password) && /\d/.test(password);
+}
 
 const generateToken = (user) =>
   jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, {
@@ -23,7 +31,6 @@ exports.register = async (req, res) => {
   try {
     const {
       fullName, email, password, role,
-      academicYear, programmeType,
       companyName, companyAddress, companySector, contactPhone,
     } = req.body;
 
@@ -31,30 +38,29 @@ exports.register = async (req, res) => {
       return res.status(400).json({ error: 'fullName, email, password and role are required' });
     }
     const normalizedRole = role.toUpperCase();
-    if (!['STUDENT', 'TUTOR', 'PROVIDER'].includes(normalizedRole)) {
-      return res.status(400).json({ error: 'Self-registration is only available for student, tutor and provider accounts' });
+    if (!['STUDENT', 'PROVIDER'].includes(normalizedRole)) {
+      return res.status(400).json({ error: 'Self-registration is only available for student and provider accounts' });
     }
 
+    if (normalizedRole === 'STUDENT') {
+      return registerStudent(req, res);
+    }
+
+    // ── Provider self-registration (provider-register.php) — unchanged ──
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) return res.status(400).json({ error: 'Email is already registered' });
 
-    let companyId = null;
-    if (normalizedRole === 'PROVIDER') {
-      if (!companyName) return res.status(400).json({ error: 'companyName is required for provider registration' });
-      const company = await prisma.company.create({
-        data: { name: companyName, address: companyAddress, sector: companySector, contactName: fullName, contactEmail: email, contactPhone },
-      });
-      companyId = company.id;
-    }
+    if (!companyName) return res.status(400).json({ error: 'companyName is required for provider registration' });
+    const company = await prisma.company.create({
+      data: { name: companyName, address: companyAddress, sector: companySector, contactName: fullName, contactEmail: email, contactPhone },
+    });
 
     const hashed = await bcrypt.hash(password, 12);
     const user = await prisma.user.create({
       data: {
         fullName, email, password: hashed, role: normalizedRole,
         avatarInitials: initials(fullName),
-        academicYear: normalizedRole === 'STUDENT' ? academicYear : null,
-        programmeType: normalizedRole === 'STUDENT' ? programmeType : null,
-        companyId,
+        companyId: company.id,
         approvalStatus: 'PENDING',
       },
     });
@@ -67,6 +73,90 @@ exports.register = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// ── Student registration (register.php) — Leicester email + OTP-gated ────
+exports.sendRegistrationOtp = async (req, res) => {
+  try {
+    const email = (req.body.email || '').trim();
+    const emailLower = email.toLowerCase();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailLower)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+    if (!LEICESTER_STUDENT_EMAIL.test(emailLower)) {
+      return res.status(400).json({ error: 'Must use Leicester student email (@student.le.ac.uk)' });
+    }
+
+    const existing = await prisma.user.findFirst({ where: { email: { equals: emailLower, mode: 'insensitive' } } });
+    if (existing) return res.status(400).json({ error: 'This email is already registered' });
+
+    const code = crypto.randomInt(0, 1000000).toString().padStart(6, '0');
+    await prisma.otpCode.create({
+      data: { email: emailLower, code, purpose: 'registration', expiresAt: new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000) },
+    });
+
+    await mailRegistrationOtp(emailLower, code);
+    res.json({ message: 'OTP sent successfully!' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+async function registerStudent(req, res) {
+  const { fullName, email, password, confirmPassword, academicYear, programmeType, otp } = req.body;
+  const emailLower = (email || '').trim().toLowerCase();
+
+  if (!LEICESTER_STUDENT_EMAIL.test(emailLower)) {
+    return res.status(400).json({ error: 'You must use your Leicester student email (@student.le.ac.uk).' });
+  }
+  if (!fullName || !academicYear || !programmeType) {
+    return res.status(400).json({ error: 'Full name, academic year and programme type are required.' });
+  }
+  if (password !== confirmPassword) {
+    return res.status(400).json({ error: 'Passwords do not match.' });
+  }
+  if (!isPasswordStrong(password || '')) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters and include uppercase, lowercase, and a number.' });
+  }
+
+  const otpRow = await prisma.otpCode.findFirst({
+    where: { email: emailLower, purpose: 'registration', usedAt: null, expiresAt: { gt: new Date() } },
+    orderBy: { createdAt: 'desc' },
+  });
+  if (!otpRow) {
+    return res.status(400).json({ error: 'OTP session not found or expired. Please request a new code.' });
+  }
+  if (otpRow.code !== String(otp || '').padStart(6, '0')) {
+    const attempts = otpRow.attempts + 1;
+    if (attempts >= OTP_MAX_ATTEMPTS) {
+      await prisma.otpCode.update({ where: { id: otpRow.id }, data: { attempts, usedAt: new Date() } });
+      return res.status(400).json({ error: 'Too many incorrect attempts. Please click Send OTP to request a new code.' });
+    }
+    await prisma.otpCode.update({ where: { id: otpRow.id }, data: { attempts } });
+    const remaining = OTP_MAX_ATTEMPTS - attempts;
+    return res.status(400).json({ error: `Incorrect OTP. You have ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.` });
+  }
+  await prisma.otpCode.update({ where: { id: otpRow.id }, data: { usedAt: new Date() } });
+
+  const existing = await prisma.user.findFirst({ where: { email: { equals: emailLower, mode: 'insensitive' } } });
+  if (existing) return res.status(400).json({ error: 'An account with this email already exists.' });
+
+  const hashed = await bcrypt.hash(password, 12);
+  const user = await prisma.user.create({
+    data: {
+      fullName, email: emailLower, password: hashed, role: 'STUDENT',
+      academicYear, programmeType,
+      avatarInitials: initials(fullName),
+      approvalStatus: 'PENDING',
+    },
+  });
+  await logAction(user.id, 'register', 'users', user.id);
+
+  const admins = await prisma.user.findMany({ where: { role: 'ADMIN', isActive: true }, select: { email: true, fullName: true } });
+  if (admins.length) await mailNewRegistration(admins, fullName, emailLower, academicYear, programmeType);
+
+  res.status(201).json({ message: 'Registration successful! Your account is pending admin approval. You will receive an email once approved.' });
+}
 
 exports.login = async (req, res) => {
   try {
